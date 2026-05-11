@@ -35,7 +35,7 @@ export function TradingViewWidget({ symbol }: TradingViewWidgetProps) {
   }, [symbol]);
 
   return (
-    <div className="h-full min-h-[420px] overflow-hidden border border-cyan-400/10 bg-[#070b12]">
+    <div className="h-full min-h-[440px] overflow-hidden rounded-lg bg-[#070b12]">
       <div ref={containerRef} className="tradingview-widget-container h-full w-full">
         <div className="tradingview-widget-container__widget h-full w-full" />
       </div>

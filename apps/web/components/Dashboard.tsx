@@ -1,14 +1,31 @@
 "use client";
 
-import { Activity, BarChart3, Bot, Gauge, LineChart, Radio, RefreshCw, Settings, ShieldCheck, Target } from "lucide-react";
+import {
+  Activity,
+  BarChart3,
+  Bot,
+  BrainCircuit,
+  ChevronRight,
+  Gauge,
+  LayoutGrid,
+  LineChart,
+  Radio,
+  RefreshCw,
+  Settings,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sparkles,
+  Target,
+  TrendingUp,
+} from "lucide-react";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
 import { applyOptimizer, forceScan, getDashboardState, resetState, runTradeManager, saveStrategySettings } from "@/lib/api";
-import type { Analytics, LearningStatus, OptimizerState, PairPerformanceState, StrategySettings, TradeSignal } from "@/lib/types";
 import { TradingViewWidget } from "@/components/TradingViewWidget";
+import type { Analytics, LearningStatus, OptimizerState, PairPerformanceState, StrategySettings, TradeSignal } from "@/lib/types";
 
 const navItems = [
-  { label: "Overview", icon: BarChart3 },
+  { label: "Overview", icon: LayoutGrid },
   { label: "Signals", icon: Radio },
   { label: "Analytics", icon: Gauge },
   { label: "Settings", icon: Settings },
@@ -38,10 +55,18 @@ function formatNumber(value: number, suffix = "") {
   return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(value)}${suffix}`;
 }
 
+function formatSignalTime(timestamp: string) {
+  return new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function panelClassName(extra = "") {
+  return `border border-white/8 bg-[linear-gradient(180deg,rgba(15,23,42,0.92),rgba(8,12,20,0.96))] shadow-[0_0_0_1px_rgba(255,255,255,0.02),0_14px_40px_rgba(2,6,23,0.35)] ${extra}`.trim();
+}
+
 function signalTone(signal: TradeSignal["signal"]) {
-  if (signal === "BUY") return "border-emerald-400/30 bg-emerald-400/10 text-emerald-200";
-  if (signal === "SELL") return "border-rose-400/30 bg-rose-400/10 text-rose-200";
-  return "border-amber-300/30 bg-amber-300/10 text-amber-100";
+  if (signal === "BUY") return "border-emerald-400/30 bg-emerald-400/12 text-emerald-200";
+  if (signal === "SELL") return "border-rose-400/30 bg-rose-400/12 text-rose-200";
+  return "border-amber-300/30 bg-amber-300/12 text-amber-100";
 }
 
 function statusTone(status: TradeSignal["trade_status"]) {
@@ -53,16 +78,73 @@ function statusTone(status: TradeSignal["trade_status"]) {
 
 function ConfidenceMeter({ value }: { value: number }) {
   const percent = Math.round(value * 100);
-  const tone = percent >= 82 ? "bg-emerald-300" : percent >= 70 ? "bg-cyan-300" : "bg-amber-300";
+  const tone = percent >= 80 ? "bg-emerald-300" : percent >= 60 ? "bg-cyan-300" : "bg-amber-300";
+
   return (
-    <div className="grid gap-1">
+    <div className="grid gap-1.5">
       <div className="flex items-center justify-between font-mono text-[11px] text-slate-400">
         <span>Confidence</span>
-        <strong className="text-white">{percent}%</strong>
+        <strong className="text-slate-100">{percent}%</strong>
       </div>
-      <div className="h-1.5 overflow-hidden bg-white/10">
-        <div className={`h-full ${tone}`} style={{ width: `${percent}%` }} />
+      <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
+        <div className={`h-full rounded-full ${tone}`} style={{ width: `${percent}%` }} />
       </div>
+    </div>
+  );
+}
+
+function SectionHeader({
+  title,
+  detail,
+  icon: Icon,
+}: {
+  title: string;
+  detail?: string;
+  icon?: typeof BarChart3;
+}) {
+  return (
+    <div className="mb-3 flex items-center justify-between gap-3">
+      <div className="flex items-center gap-2">
+        {Icon ? <Icon size={15} className="text-slate-500" /> : null}
+        <h2 className="text-sm font-semibold text-slate-100">{title}</h2>
+      </div>
+      {detail ? <span className="font-mono text-[11px] text-slate-500">{detail}</span> : null}
+    </div>
+  );
+}
+
+function StatTile({
+  label,
+  value,
+  icon: Icon,
+  accent,
+}: {
+  label: string;
+  value: string | number;
+  icon: typeof Activity;
+  accent: string;
+}) {
+  return (
+    <div className={`${panelClassName()} rounded-lg p-3`}>
+      <div className="mb-3 flex items-start justify-between">
+        <div>
+          <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{label}</div>
+          <div className="mt-2 font-mono text-2xl font-semibold text-white">{value}</div>
+        </div>
+        <div className={`grid size-9 place-items-center rounded-md border ${accent}`}>
+          <Icon size={15} />
+        </div>
+      </div>
+      <div className="h-px bg-white/6" />
+    </div>
+  );
+}
+
+function MetricPill({ label, value, tone }: { label: string; value: string; tone?: string }) {
+  return (
+    <div className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] ${tone ?? "border-white/10 bg-white/[0.04] text-slate-300"}`}>
+      <span className="text-slate-500">{label}</span>
+      <strong className="font-mono text-slate-100">{value}</strong>
     </div>
   );
 }
@@ -78,11 +160,11 @@ export function Dashboard() {
   const [optimizer, setOptimizer] = useState<OptimizerState | null>(null);
   const [strategySettings, setStrategySettings] = useState<StrategySettings>(defaultSettings);
   const [selectedPair, setSelectedPair] = useState("EURUSD");
-  const [lastUpdated, setLastUpdated] = useState<string>("Waiting for API");
+  const [lastUpdated, setLastUpdated] = useState("Waiting for API");
   const [isPending, startTransition] = useTransition();
 
   const activeSignal = useMemo(
-    () => signals.find((signal) => signal.pair === selectedPair) ?? signals[0],
+    () => signals.find((signal) => signal.pair === selectedPair) ?? signals[0] ?? null,
     [selectedPair, signals],
   );
 
@@ -100,7 +182,7 @@ export function Dashboard() {
     if (!state.signals.some((signal) => signal.pair === selectedPair) && state.signals[0]) {
       setSelectedPair(state.signals[0].pair);
     }
-    setLastUpdated(new Date().toLocaleTimeString());
+    setLastUpdated(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
   }
 
   useEffect(() => {
@@ -113,10 +195,7 @@ export function Dashboard() {
 
   function handleForceScan() {
     startTransition(() => {
-      void forceScan().then((nextSignals) => {
-        setSignals(nextSignals);
-        return refresh();
-      });
+      void forceScan().then(refresh);
     });
   }
 
@@ -155,27 +234,27 @@ export function Dashboard() {
   }
 
   const metricCards = [
-    { label: "Total Trades", value: analytics.total_trades, icon: Activity },
-    { label: "Win Rate", value: formatNumber(analytics.win_rate, "%"), icon: Target },
-    { label: "Active", value: analytics.active_trades, icon: Radio },
-    { label: "Profit Factor", value: analytics.profit_factor, icon: ShieldCheck },
-    { label: "Avg RR", value: analytics.avg_rr, icon: LineChart },
-    { label: "Best Pair", value: analytics.best_pair, icon: Bot },
+    { label: "Total Trades", value: analytics.total_trades, icon: Activity, accent: "border-cyan-400/20 bg-cyan-400/10 text-cyan-200" },
+    { label: "Win Rate", value: formatNumber(analytics.win_rate, "%"), icon: Target, accent: "border-emerald-400/20 bg-emerald-400/10 text-emerald-200" },
+    { label: "Active", value: analytics.active_trades, icon: Radio, accent: "border-violet-400/20 bg-violet-400/10 text-violet-200" },
+    { label: "Profit Factor", value: analytics.profit_factor, icon: ShieldCheck, accent: "border-amber-300/20 bg-amber-300/10 text-amber-100" },
+    { label: "Avg RR", value: analytics.avg_rr, icon: LineChart, accent: "border-sky-400/20 bg-sky-400/10 text-sky-200" },
+    { label: "Best Pair", value: analytics.best_pair, icon: Bot, accent: "border-fuchsia-400/20 bg-fuchsia-400/10 text-fuchsia-200" },
   ];
 
   return (
     <main className="min-h-screen bg-[#05070d] text-slate-100">
-      <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[72px_minmax(0,1fr)]">
-        <aside className="hidden border-r border-white/10 bg-[#080d16] lg:block">
+      <div className="grid min-h-screen grid-cols-1 xl:grid-cols-[72px_minmax(0,1fr)]">
+        <aside className="hidden border-r border-white/6 bg-[#060a12] xl:block">
           <div className="flex h-full flex-col items-center gap-5 py-4">
-            <div className="grid size-11 place-items-center border border-cyan-300/30 bg-cyan-300/10 font-mono text-sm font-black text-cyan-200">
+            <div className="grid size-11 place-items-center rounded-lg border border-cyan-300/25 bg-cyan-300/10 font-mono text-sm font-black text-cyan-200">
               FX
             </div>
             <nav className="flex flex-1 flex-col gap-2">
               {navItems.map((item) => (
                 <button
                   aria-label={item.label}
-                  className="grid size-11 place-items-center border border-transparent text-slate-400 transition hover:border-cyan-300/20 hover:bg-cyan-300/10 hover:text-cyan-100"
+                  className="grid size-11 place-items-center rounded-lg border border-transparent text-slate-500 transition hover:border-cyan-300/20 hover:bg-cyan-300/10 hover:text-cyan-100"
                   key={item.label}
                   type="button"
                 >
@@ -186,327 +265,355 @@ export function Dashboard() {
           </div>
         </aside>
 
-        <section className="grid grid-rows-[auto_minmax(0,1fr)]">
-          <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#080d16]/95 px-4 py-3">
-            <div>
-              <h1 className="font-mono text-lg font-semibold tracking-normal text-white">Forex AI Radar</h1>
-              <p className="text-xs text-slate-400">AI signal engine · PostgreSQL lifecycle ledger · last update {lastUpdated}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-xs text-emerald-100">
-                Real candles: Yahoo Finance
-              </span>
-              <button
-                className="inline-flex items-center gap-2 border border-cyan-300/30 bg-cyan-300/10 px-3 py-2 text-sm text-cyan-100 hover:bg-cyan-300/20"
-                disabled={isPending}
-                onClick={handleForceScan}
-                type="button"
-              >
-                <RefreshCw size={16} />
-                {isPending ? "Scanning" : "Force Scan"}
-              </button>
+        <section className="min-w-0">
+          <header className="sticky top-0 z-20 border-b border-white/6 bg-[rgba(5,7,13,0.92)] px-4 py-4 backdrop-blur xl:px-5">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0">
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className="inline-flex items-center rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 font-mono text-[11px] text-cyan-100">
+                      Forex AI Radar
+                    </span>
+                    <span className="hidden text-[11px] text-slate-500 sm:block">PostgreSQL runtime</span>
+                  </div>
+                  <h1 className="text-xl font-semibold tracking-normal text-white sm:text-2xl">AI forex terminal with live pair controls and adaptive filtering</h1>
+                  <p className="mt-1 text-sm text-slate-400">Trading dashboard, live signals, optimizer controls, and Telegram flow in one compact surface.</p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <MetricPill label="Data" value="Yahoo Finance" tone="border-emerald-300/20 bg-emerald-300/10 text-emerald-100" />
+                  <MetricPill label="Last sync" value={lastUpdated} />
+                  <button
+                    className="inline-flex items-center gap-2 rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-3 py-2 text-sm text-cyan-100 transition hover:bg-cyan-300/20 disabled:opacity-60"
+                    disabled={isPending}
+                    onClick={handleForceScan}
+                    type="button"
+                  >
+                    <RefreshCw size={16} />
+                    {isPending ? "Scanning" : "Force Scan"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:hidden">
+                {navItems.map((item) => (
+                  <div className="flex items-center gap-2 rounded-lg border border-white/8 bg-white/[0.03] px-3 py-2 text-sm text-slate-300" key={item.label}>
+                    <item.icon size={14} className="text-slate-500" />
+                    <span>{item.label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </header>
 
-          <div className="grid gap-3 p-3 xl:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="grid min-h-0 gap-3">
-              <section className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
-                {metricCards.map((metric) => (
-                  <div className="border border-white/10 bg-[#0b111d] p-3" key={metric.label}>
-                    <div className="mb-3 flex items-center justify-between text-slate-400">
-                      <span className="text-[11px] uppercase">{metric.label}</span>
-                      <metric.icon size={15} />
-                    </div>
-                    <strong className="font-mono text-xl text-white">{metric.value}</strong>
-                  </div>
-                ))}
-              </section>
+          <div className="px-3 py-3 sm:px-4 xl:px-5">
+            <section className="grid grid-cols-2 gap-2 lg:grid-cols-3 2xl:grid-cols-6">
+              {metricCards.map((metric) => (
+                <StatTile key={metric.label} {...metric} />
+              ))}
+            </section>
 
-              <section className="grid min-h-[480px] gap-3 xl:grid-cols-[minmax(0,1fr)_220px]">
-                <TradingViewWidget symbol={selectedPair} />
-                <div className="border border-white/10 bg-[#0b111d] p-3">
-                  {latestTelegramTrade ? (
-                    <div className={`mb-3 border p-2 ${activeTelegramTrade ? "border-cyan-300/30 bg-cyan-300/10" : "border-white/10 bg-white/[0.03]"}`}>
-                      <div className="text-[11px] uppercase text-cyan-100">
-                        {activeTelegramTrade ? "Telegram active trade" : "Last Telegram trade"}
+            <div className="mt-3 grid gap-3 2xl:grid-cols-[minmax(0,1.2fr)_380px]">
+              <div className="grid min-w-0 gap-3">
+                <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_250px]">
+                  <div className={`${panelClassName()} overflow-hidden rounded-lg`}>
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/6 px-3 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp size={15} className="text-cyan-300" />
+                        <div>
+                          <div className="font-mono text-sm text-white">{selectedPair}</div>
+                          <div className="text-[11px] text-slate-500">Chart focus</div>
+                        </div>
                       </div>
-                      <div className="mt-1 flex items-center justify-between font-mono text-xs">
-                        <strong>{latestTelegramTrade.pair}</strong>
-                        <span className={statusTone(latestTelegramTrade.trade_status)}>
-                          {latestTelegramTrade.signal} / {latestTelegramTrade.trade_status}
-                        </span>
+                      <div className="flex flex-wrap gap-2">
+                        <MetricPill label="Session" value={activeSignal?.session ?? "Offline"} />
+                        <MetricPill label="Setup" value={activeSignal?.setup_type ?? "NONE"} />
                       </div>
                     </div>
-                  ) : null}
-                  <div className="mb-3 flex items-center justify-between">
-                    <h2 className="text-sm font-semibold">Watchlist</h2>
-                    <span className="font-mono text-[11px] text-cyan-200">5m scan</span>
+                    <TradingViewWidget symbol={selectedPair} />
                   </div>
+
+                  <div className={`${panelClassName()} rounded-lg p-3`}>
+                    <SectionHeader title="Watchlist" detail="5m live scan" icon={Radio} />
+
+                    {latestTelegramTrade ? (
+                      <div className={`mb-3 rounded-lg border p-3 ${activeTelegramTrade ? "border-cyan-300/30 bg-cyan-300/10" : "border-white/8 bg-white/[0.03]"}`}>
+                        <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-cyan-100">
+                          {activeTelegramTrade ? "Telegram active trade" : "Last Telegram trade"}
+                        </div>
+                        <div className="flex items-center justify-between gap-2 font-mono text-sm">
+                          <strong>{latestTelegramTrade.pair}</strong>
+                          <span className={statusTone(latestTelegramTrade.trade_status)}>
+                            {latestTelegramTrade.signal} / {latestTelegramTrade.trade_status}
+                          </span>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="grid gap-2">
+                      {signals.slice(0, 8).map((signal) => (
+                        <button
+                          className={`rounded-lg border px-3 py-2.5 text-left transition ${selectedPair === signal.pair ? "border-cyan-300/35 bg-cyan-300/10" : "border-white/8 bg-white/[0.03] hover:border-white/15"}`}
+                          key={signal.signal_id}
+                          onClick={() => setSelectedPair(signal.pair)}
+                          type="button"
+                        >
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <strong className="font-mono text-sm text-white">{signal.pair}</strong>
+                            <span className={`rounded-md border px-2 py-0.5 text-[11px] ${signalTone(signal.signal)}`}>{signal.signal}</span>
+                          </div>
+                          <div className="mb-2 flex items-center justify-between font-mono text-[11px] text-slate-400">
+                            <span>{signal.trade_status}</span>
+                            <span>{formatSignalTime(signal.timestamp)}</span>
+                          </div>
+                          <ConfidenceMeter value={signal.confidence} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+
+                <section className={`${panelClassName()} overflow-hidden rounded-lg`}>
+                  <div className="border-b border-white/6 px-3 py-2.5">
+                    <SectionHeader title="Trade History" detail={`${trades.length} rows`} icon={Activity} />
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[920px] text-left text-xs">
+                      <thead className="bg-white/[0.03] font-mono text-slate-500">
+                        <tr>
+                          {["Pair", "Signal", "Quality", "Entry", "SL", "TP", "RR", "Status", "Time"].map((header) => (
+                            <th className="px-3 py-2 font-medium" key={header}>{header}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {trades.map((trade) => (
+                          <tr className="border-t border-white/6 text-slate-300" key={trade.signal_id}>
+                            <td className="px-3 py-2.5 font-mono text-white">{trade.pair}</td>
+                            <td className="px-3 py-2.5">
+                              <span className={`rounded-md border px-2 py-0.5 font-mono text-[11px] ${signalTone(trade.signal)}`}>{trade.signal}</span>
+                            </td>
+                            <td className="px-3 py-2.5">{trade.setup_quality}</td>
+                            <td className="px-3 py-2.5 font-mono">{trade.entry}</td>
+                            <td className="px-3 py-2.5 font-mono text-rose-200">{trade.sl}</td>
+                            <td className="px-3 py-2.5 font-mono text-emerald-200">{trade.tp}</td>
+                            <td className="px-3 py-2.5 font-mono">{trade.rr}</td>
+                            <td className={`px-3 py-2.5 font-mono ${statusTone(trade.trade_status)}`}>{trade.trade_status}</td>
+                            <td className="px-3 py-2.5 font-mono text-slate-500">{formatSignalTime(trade.timestamp)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+
+                <section className={`${panelClassName()} overflow-hidden rounded-lg`}>
+                  <div className="border-b border-white/6 px-3 py-2.5">
+                    <SectionHeader title="Pair Performance" detail={`${pairPerformance?.pairs.length ?? 0} pairs`} icon={BarChart3} />
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[820px] text-left text-xs">
+                      <thead className="bg-white/[0.03] font-mono text-slate-500">
+                        <tr>
+                          {["Pair", "Enabled", "Finished", "Wins", "Losses", "Win Rate", "Avg Bias", "Avg Conf"].map((header) => (
+                            <th className="px-3 py-2 font-medium" key={header}>{header}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(pairPerformance?.pairs ?? []).map((row) => (
+                          <tr className="border-t border-white/6 text-slate-300" key={row.pair}>
+                            <td className="px-3 py-2.5 font-mono text-white">{row.pair}</td>
+                            <td className={`px-3 py-2.5 font-mono ${row.enabled ? "text-emerald-300" : "text-slate-500"}`}>{row.enabled ? "ON" : "OFF"}</td>
+                            <td className="px-3 py-2.5 font-mono">{row.finished_trades}</td>
+                            <td className="px-3 py-2.5 font-mono text-emerald-300">{row.wins}</td>
+                            <td className="px-3 py-2.5 font-mono text-rose-300">{row.losses}</td>
+                            <td className="px-3 py-2.5 font-mono">{row.win_rate}%</td>
+                            <td className={`px-3 py-2.5 font-mono ${row.avg_learning_bias >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{row.avg_learning_bias}</td>
+                            <td className="px-3 py-2.5 font-mono">{Math.round(row.avg_confidence * 100)}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              </div>
+
+              <aside className="grid content-start gap-3">
+                <section className={`${panelClassName()} rounded-lg p-3`}>
+                  <SectionHeader title="AI Signal Stack" detail={activeSignal?.session ?? "Offline"} icon={Sparkles} />
                   <div className="grid gap-2">
-                    {signals.slice(0, 8).map((signal) => (
-                      <button
-                        className={`border px-3 py-2 text-left ${selectedPair === signal.pair ? "border-cyan-300/50 bg-cyan-300/10" : "border-white/10 bg-white/[0.03]"}`}
-                        key={signal.signal_id}
-                        onClick={() => setSelectedPair(signal.pair)}
-                        type="button"
-                      >
-                        <div className="flex items-center justify-between">
-                          <strong className="font-mono text-sm">{signal.pair}</strong>
-                          <span className={statusTone(signal.trade_status)}>{signal.trade_status}</span>
+                    {signals.slice(0, 6).map((signal) => (
+                      <article className="rounded-lg border border-white/8 bg-white/[0.03] p-3" key={signal.signal_id}>
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                          <strong className="font-mono text-sm text-white">{signal.pair}</strong>
+                          <span className={`rounded-md border px-2 py-0.5 text-[11px] ${signalTone(signal.signal)}`}>{signal.signal}</span>
                         </div>
-                        <div className="mt-1 flex items-center justify-between text-xs text-slate-400">
-                          <span>{signal.signal}</span>
-                          <span>{Math.round(signal.confidence * 100)}%</span>
+                        <div className="mb-3 grid grid-cols-3 gap-2 font-mono text-[11px]">
+                          <div><span className="text-slate-500">RR</span><strong className="mt-1 block text-white">{signal.rr}</strong></div>
+                          <div><span className="text-slate-500">RSI</span><strong className="mt-1 block text-white">{signal.rsi}</strong></div>
+                          <div><span className="text-slate-500">Score</span><strong className="mt-1 block text-white">{signal.setup_score}</strong></div>
                         </div>
-                        <div className="mt-2 h-1 bg-white/10">
-                          <div className="h-full bg-cyan-300" style={{ width: `${Math.round(signal.confidence * 100)}%` }} />
-                        </div>
-                      </button>
+                        <ConfidenceMeter value={signal.confidence} />
+                      </article>
                     ))}
                   </div>
-                </div>
-              </section>
+                </section>
 
-              <section className="overflow-hidden border border-white/10 bg-[#0b111d]">
-                <div className="flex items-center justify-between border-b border-white/10 px-3 py-2">
-                  <h2 className="text-sm font-semibold">Trade History</h2>
-                  <span className="text-xs text-slate-400">{trades.length} rows</span>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[860px] text-left font-mono text-xs">
-                    <thead className="bg-white/[0.03] text-slate-400">
-                      <tr>
-                        {["Pair", "Signal", "Quality", "RR", "Entry", "SL", "TP", "Status", "Time"].map((header) => (
-                          <th className="px-3 py-2 font-medium" key={header}>{header}</th>
+                <section className={`${panelClassName()} rounded-lg p-3`}>
+                  <SectionHeader title="Adaptive Learning" icon={BrainCircuit} />
+                  {learningStatus ? (
+                    <div className="grid gap-2 font-mono text-xs">
+                      <div className="flex justify-between"><span className="text-slate-500">Closed trades used</span><strong>{learningStatus.closed_trades_used}</strong></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Wins / Losses</span><strong>{learningStatus.wins} / {learningStatus.losses}</strong></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Net outcome score</span><strong className={learningStatus.net_outcome_score >= 0 ? "text-emerald-300" : "text-rose-300"}>{learningStatus.net_outcome_score}</strong></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Strongest pair</span><strong>{learningStatus.strongest_pair}</strong></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Strongest setup</span><strong>{learningStatus.strongest_setup}</strong></div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-400">Learning status unavailable.</p>
+                  )}
+                </section>
+
+                <section className={`${panelClassName()} rounded-lg p-3`}>
+                  <SectionHeader title="Optimizer" icon={SlidersHorizontal} />
+                  {optimizer ? (
+                    <div className="grid gap-2 font-mono text-xs">
+                      <div className="flex justify-between"><span className="text-slate-500">Auto blocked</span><strong>{optimizer.auto_blocked_pairs.length ? optimizer.auto_blocked_pairs.join(", ") : "None"}</strong></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Recommended on</span><strong>{optimizer.recommended_enabled_pairs.length}</strong></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Recommended off</span><strong>{optimizer.recommended_disabled_pairs.length}</strong></div>
+                      <div className="mt-1 grid gap-1">
+                        {optimizer.recommendations.slice(0, 6).map((item) => (
+                          <div className="flex items-center justify-between rounded-lg border border-white/8 bg-white/[0.03] px-2.5 py-2" key={item.pair}>
+                            <span>{item.pair}</span>
+                            <span className={item.action === "disable" ? "text-rose-300" : "text-emerald-300"}>{item.action} / {item.reason}</span>
+                          </div>
                         ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {trades.map((trade) => (
-                        <tr className="border-t border-white/10" key={trade.signal_id}>
-                          <td className="px-3 py-2 text-white">{trade.pair}</td>
-                          <td className="px-3 py-2">{trade.signal}</td>
-                          <td className="px-3 py-2">{trade.setup_quality}</td>
-                          <td className="px-3 py-2">{trade.rr}</td>
-                          <td className="px-3 py-2">{trade.entry}</td>
-                          <td className="px-3 py-2 text-rose-200">{trade.sl}</td>
-                          <td className="px-3 py-2 text-emerald-200">{trade.tp}</td>
-                          <td className={`px-3 py-2 ${statusTone(trade.trade_status)}`}>{trade.trade_status}</td>
-                          <td className="px-3 py-2 text-slate-400">{new Date(trade.timestamp).toLocaleTimeString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-
-              <section className="overflow-hidden border border-white/10 bg-[#0b111d]">
-                <div className="flex items-center justify-between border-b border-white/10 px-3 py-2">
-                  <h2 className="text-sm font-semibold">Pair Performance</h2>
-                  <span className="text-xs text-slate-400">{pairPerformance?.pairs.length ?? 0} pairs</span>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[760px] text-left font-mono text-xs">
-                    <thead className="bg-white/[0.03] text-slate-400">
-                      <tr>
-                        {["Pair", "Enabled", "Finished", "Wins", "Losses", "Win Rate", "Avg Bias", "Avg Conf"].map((header) => (
-                          <th className="px-3 py-2 font-medium" key={header}>{header}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(pairPerformance?.pairs ?? []).map((row) => (
-                        <tr className="border-t border-white/10" key={row.pair}>
-                          <td className="px-3 py-2 text-white">{row.pair}</td>
-                          <td className={`px-3 py-2 ${row.enabled ? "text-emerald-300" : "text-slate-500"}`}>{row.enabled ? "ON" : "OFF"}</td>
-                          <td className="px-3 py-2">{row.finished_trades}</td>
-                          <td className="px-3 py-2 text-emerald-300">{row.wins}</td>
-                          <td className="px-3 py-2 text-rose-300">{row.losses}</td>
-                          <td className="px-3 py-2">{row.win_rate}%</td>
-                          <td className={`px-3 py-2 ${row.avg_learning_bias >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{row.avg_learning_bias}</td>
-                          <td className="px-3 py-2">{Math.round(row.avg_confidence * 100)}%</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            </div>
-
-            <aside className="grid content-start gap-3">
-              <section className="border border-white/10 bg-[#0b111d] p-3">
-                <div className="mb-3 flex items-center justify-between">
-                  <h2 className="text-sm font-semibold">AI Signal Stack</h2>
-                  <span className="text-xs text-slate-400">{activeSignal?.session ?? "Offline"}</span>
-                </div>
-                {signals.slice(0, 6).map((signal) => (
-                  <article className="mb-2 border border-white/10 bg-white/[0.03] p-3" key={signal.signal_id}>
-                    <div className="mb-3 flex items-center justify-between">
-                      <strong className="font-mono">{signal.pair}</strong>
-                      <span className={`border px-2 py-1 text-xs ${signalTone(signal.signal)}`}>{signal.signal}</span>
+                      </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 text-xs">
-                      <div><span className="text-slate-500">RR</span><strong className="block text-white">{signal.rr}</strong></div>
-                      <div><span className="text-slate-500">RSI</span><strong className="block text-white">{signal.rsi}</strong></div>
-                      <div><span className="text-slate-500">Score</span><strong className="block text-white">{signal.setup_score}</strong></div>
-                    </div>
-                    <div className="mt-3">
-                      <ConfidenceMeter value={signal.confidence} />
-                    </div>
-                  </article>
-                ))}
-              </section>
+                  ) : (
+                    <p className="text-sm text-slate-400">Optimizer unavailable.</p>
+                  )}
+                </section>
 
-              <section className="border border-white/10 bg-[#0b111d] p-3">
-                <h2 className="mb-3 text-sm font-semibold">Adaptive Learning</h2>
-                {learningStatus ? (
-                  <div className="grid gap-2 font-mono text-xs">
-                    <div className="flex justify-between"><span className="text-slate-500">Closed trades used</span><strong>{learningStatus.closed_trades_used}</strong></div>
-                    <div className="flex justify-between"><span className="text-slate-500">Wins / Losses</span><strong>{learningStatus.wins} / {learningStatus.losses}</strong></div>
-                    <div className="flex justify-between"><span className="text-slate-500">Net outcome score</span><strong className={learningStatus.net_outcome_score >= 0 ? "text-emerald-300" : "text-rose-300"}>{learningStatus.net_outcome_score}</strong></div>
-                    <div className="flex justify-between"><span className="text-slate-500">Strongest pair</span><strong>{learningStatus.strongest_pair}</strong></div>
-                    <div className="flex justify-between"><span className="text-slate-500">Strongest setup</span><strong>{learningStatus.strongest_setup}</strong></div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-slate-400">Learning status unavailable.</p>
-                )}
-              </section>
-
-              <section className="border border-white/10 bg-[#0b111d] p-3">
-                <h2 className="mb-3 text-sm font-semibold">Optimizer</h2>
-                {optimizer ? (
-                  <div className="grid gap-2 font-mono text-xs">
-                    <div className="flex justify-between"><span className="text-slate-500">Auto blocked</span><strong>{optimizer.auto_blocked_pairs.length ? optimizer.auto_blocked_pairs.join(", ") : "None"}</strong></div>
-                    <div className="flex justify-between"><span className="text-slate-500">Recommended on</span><strong>{optimizer.recommended_enabled_pairs.length}</strong></div>
-                    <div className="flex justify-between"><span className="text-slate-500">Recommended off</span><strong>{optimizer.recommended_disabled_pairs.length}</strong></div>
-                    <div className="mt-1 grid gap-1">
-                      {optimizer.recommendations.slice(0, 6).map((item) => (
-                        <div className="flex justify-between border border-white/10 bg-white/[0.03] px-2 py-2" key={item.pair}>
-                          <span>{item.pair}</span>
-                          <span className={item.action === "disable" ? "text-rose-300" : "text-emerald-300"}>{item.action} · {item.reason}</span>
-                        </div>
-                      ))}
+                <section className={`${panelClassName()} rounded-lg p-3`}>
+                  <SectionHeader title="Strategy Controls" detail="Live" icon={Settings} />
+                  <div className="grid gap-3 text-xs">
+                    <div>
+                      <div className="mb-2 text-slate-500">Enabled pairs</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {strategyPairs.map((pair) => {
+                          const enabled = strategySettings.enabled_pairs.includes(pair);
+                          return (
+                            <button
+                              className={`rounded-lg border px-2 py-2 text-left transition ${enabled ? "border-cyan-300/35 bg-cyan-300/10 text-cyan-100" : "border-white/8 bg-white/[0.03] text-slate-400 hover:border-white/15"}`}
+                              key={pair}
+                              onClick={() => togglePair(pair)}
+                              type="button"
+                            >
+                              {pair}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-slate-400">Optimizer unavailable.</p>
-                )}
-              </section>
 
-              <section className="border border-white/10 bg-[#0b111d] p-3">
-                <div className="mb-3 flex items-center justify-between">
-                  <h2 className="text-sm font-semibold">Strategy Controls</h2>
-                  <span className="font-mono text-[11px] text-slate-400">Live</span>
-                </div>
-                <div className="grid gap-3 text-xs">
-                  <div>
-                    <div className="mb-2 text-slate-500">Enabled pairs</div>
+                    <div>
+                      <div className="mb-2 text-slate-500">Enabled setups</div>
+                      <div className="grid gap-2">
+                        {strategySetups.map((setup) => {
+                          const enabled = strategySettings.enabled_setups.includes(setup);
+                          return (
+                            <button
+                              className={`rounded-lg border px-2 py-2 text-left transition ${enabled ? "border-emerald-300/35 bg-emerald-300/10 text-emerald-100" : "border-white/8 bg-white/[0.03] text-slate-400 hover:border-white/15"}`}
+                              key={setup}
+                              onClick={() => toggleSetup(setup)}
+                              type="button"
+                            >
+                              {setup}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="mb-2 flex items-center justify-between text-slate-500">
+                        <span>Telegram min confidence</span>
+                        <strong className="font-mono text-white">{Math.round(strategySettings.min_confidence * 100)}%</strong>
+                      </div>
+                      <input
+                        className="w-full accent-cyan-300"
+                        max={0.9}
+                        min={0.4}
+                        onChange={(event) => setStrategySettings({ ...strategySettings, min_confidence: Number(event.target.value) })}
+                        step={0.01}
+                        type="range"
+                        value={strategySettings.min_confidence}
+                      />
+                    </div>
+
+                    <label className="flex items-center justify-between rounded-lg border border-white/8 bg-white/[0.03] px-2.5 py-2">
+                      <span className="text-slate-400">Auto pair blocking</span>
+                      <input
+                        checked={strategySettings.auto_block_enabled}
+                        className="accent-cyan-300"
+                        onChange={(event) => setStrategySettings({ ...strategySettings, auto_block_enabled: event.target.checked })}
+                        type="checkbox"
+                      />
+                    </label>
+
                     <div className="grid grid-cols-2 gap-2">
-                      {strategyPairs.map((pair) => {
-                        const enabled = strategySettings.enabled_pairs.includes(pair);
-                        return (
-                          <button
-                            className={`border px-2 py-2 text-left ${enabled ? "border-cyan-300/40 bg-cyan-300/10 text-cyan-100" : "border-white/10 bg-white/[0.03] text-slate-400"}`}
-                            key={pair}
-                            onClick={() => togglePair(pair)}
-                            type="button"
-                          >
-                            {pair}
-                          </button>
-                        );
-                      })}
+                      <button
+                        className="rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-3 py-2 text-cyan-100 transition hover:bg-cyan-300/20 disabled:opacity-60"
+                        disabled={isPending}
+                        onClick={handleSaveSettings}
+                        type="button"
+                      >
+                        Save controls
+                      </button>
+                      <button
+                        className="rounded-lg border border-rose-300/25 bg-rose-300/10 px-3 py-2 text-rose-100 transition hover:bg-rose-300/20 disabled:opacity-60"
+                        disabled={isPending}
+                        onClick={handleResetState}
+                        type="button"
+                      >
+                        Hard reset
+                      </button>
                     </div>
-                  </div>
-                  <div>
-                    <div className="mb-2 text-slate-500">Enabled setups</div>
-                    <div className="grid gap-2">
-                      {strategySetups.map((setup) => {
-                        const enabled = strategySettings.enabled_setups.includes(setup);
-                        return (
-                          <button
-                            className={`border px-2 py-2 text-left ${enabled ? "border-emerald-300/40 bg-emerald-300/10 text-emerald-100" : "border-white/10 bg-white/[0.03] text-slate-400"}`}
-                            key={setup}
-                            onClick={() => toggleSetup(setup)}
-                            type="button"
-                          >
-                            {setup}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="mb-2 flex items-center justify-between text-slate-500">
-                      <span>Telegram min confidence</span>
-                      <strong className="text-white">{Math.round(strategySettings.min_confidence * 100)}%</strong>
-                    </div>
-                    <input
-                      className="w-full accent-cyan-300"
-                      max={0.9}
-                      min={0.4}
-                      onChange={(event) => setStrategySettings({ ...strategySettings, min_confidence: Number(event.target.value) })}
-                      step={0.01}
-                      type="range"
-                      value={strategySettings.min_confidence}
-                    />
-                  </div>
-                  <label className="flex items-center justify-between border border-white/10 bg-white/[0.03] px-2 py-2">
-                    <span className="text-slate-400">Auto pair blocking</span>
-                    <input
-                      checked={strategySettings.auto_block_enabled}
-                      className="accent-cyan-300"
-                      onChange={(event) => setStrategySettings({ ...strategySettings, auto_block_enabled: event.target.checked })}
-                      type="checkbox"
-                    />
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      className="border border-cyan-300/30 bg-cyan-300/10 px-3 py-2 text-cyan-100 hover:bg-cyan-300/20"
-                      disabled={isPending}
-                      onClick={handleSaveSettings}
-                      type="button"
-                    >
-                      Save controls
-                    </button>
-                    <button
-                      className="border border-rose-300/30 bg-rose-300/10 px-3 py-2 text-rose-100 hover:bg-rose-300/20"
-                      disabled={isPending}
-                      onClick={handleResetState}
-                      type="button"
-                    >
-                      Hard reset
-                    </button>
-                  </div>
-                  <button
-                    className="border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-amber-100 hover:bg-amber-300/20"
-                    disabled={isPending}
-                    onClick={handleApplyOptimizer}
-                    type="button"
-                  >
-                    Apply optimizer
-                  </button>
-                </div>
-              </section>
 
-              <section className="border border-white/10 bg-[#0b111d] p-3">
-                <h2 className="mb-3 text-sm font-semibold">Live Market State</h2>
-                {activeSignal ? (
-                  <div className="grid gap-2 font-mono text-xs">
-                    <div className="flex justify-between"><span className="text-slate-500">Pair</span><strong>{activeSignal.pair}</strong></div>
-                    <div className="flex justify-between"><span className="text-slate-500">Trend</span><strong>{activeSignal.trend_bias}</strong></div>
-                    <div className="flex justify-between"><span className="text-slate-500">ATR</span><strong>{activeSignal.atr}</strong></div>
-                    <div className="flex justify-between"><span className="text-slate-500">EMA 12</span><strong>{activeSignal.ema_fast}</strong></div>
-                    <div className="flex justify-between"><span className="text-slate-500">EMA 26</span><strong>{activeSignal.ema_slow}</strong></div>
-                    <div className="flex justify-between"><span className="text-slate-500">Setup</span><strong>{activeSignal.setup_type ?? "NONE"}</strong></div>
-                    <div className="flex justify-between"><span className="text-slate-500">Learning bias</span><strong className={(activeSignal.learning_bias ?? 0) >= 0 ? "text-emerald-300" : "text-rose-300"}>{activeSignal.learning_bias ?? 0}</strong></div>
-                    <div className="flex justify-between"><span className="text-slate-500">Source</span><strong className="text-amber-100">{activeSignal.source}</strong></div>
-                    <ConfidenceMeter value={activeSignal.confidence} />
+                    <button
+                      className="inline-flex items-center justify-between rounded-lg border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-amber-100 transition hover:bg-amber-300/20 disabled:opacity-60"
+                      disabled={isPending}
+                      onClick={handleApplyOptimizer}
+                      type="button"
+                    >
+                      <span>Apply optimizer</span>
+                      <ChevronRight size={14} />
+                    </button>
                   </div>
-                ) : (
-                  <p className="text-sm text-slate-400">Start the backend or run a force scan to populate signals.</p>
-                )}
-              </section>
-            </aside>
+                </section>
+
+                <section className={`${panelClassName()} rounded-lg p-3`}>
+                  <SectionHeader title="Live Market State" icon={Gauge} />
+                  {activeSignal ? (
+                    <div className="grid gap-2 font-mono text-xs">
+                      <div className="flex justify-between"><span className="text-slate-500">Pair</span><strong>{activeSignal.pair}</strong></div>
+                      <div className="flex justify-between gap-3"><span className="text-slate-500">Trend</span><strong className="text-right">{activeSignal.trend_bias}</strong></div>
+                      <div className="flex justify-between"><span className="text-slate-500">ATR</span><strong>{activeSignal.atr}</strong></div>
+                      <div className="flex justify-between"><span className="text-slate-500">EMA 12</span><strong>{activeSignal.ema_fast}</strong></div>
+                      <div className="flex justify-between"><span className="text-slate-500">EMA 26</span><strong>{activeSignal.ema_slow}</strong></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Setup</span><strong>{activeSignal.setup_type ?? "NONE"}</strong></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Learning bias</span><strong className={(activeSignal.learning_bias ?? 0) >= 0 ? "text-emerald-300" : "text-rose-300"}>{activeSignal.learning_bias ?? 0}</strong></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Source</span><strong className="text-amber-100">{activeSignal.source}</strong></div>
+                      <ConfidenceMeter value={activeSignal.confidence} />
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-400">Start the backend or run a force scan to populate signals.</p>
+                  )}
+                </section>
+              </aside>
+            </div>
           </div>
         </section>
       </div>
