@@ -87,12 +87,15 @@ def require_admin(session: dict[str, Any]) -> dict[str, Any]:
     return session
 
 
+def is_admin_session(session: dict[str, Any]) -> bool:
+    return session.get("role") == "ADMIN"
+
+
 def current_session_payload(session: dict[str, Any]) -> dict[str, Any]:
     return {
         "role": session.get("role"),
         "user_name": session.get("user_name"),
         "label": session.get("label") or ("Admin" if session.get("role") == "ADMIN" else "User"),
-        "session_token": session.get("session_token"),
     }
 
 

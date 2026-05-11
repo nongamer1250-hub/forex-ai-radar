@@ -36,7 +36,7 @@ from database import (
 from demo_trading import demo_account_snapshot, demo_trade_history, place_demo_trade, run_demo_trade_manager_for_account
 from learning import learning_status, optimize_strategy, pair_performance
 from scanner import force_scan
-from telegram import telegram_configured
+from telegram_settings import add_recipient_for_session, recipients_for_session, remove_recipient_for_session
 from trade_manager import run_trade_manager
 
 scheduler = BackgroundScheduler()
@@ -81,7 +81,6 @@ def health() -> dict[str, object]:
     return {
         "status": "ok",
         "market_data": "YAHOO_FINANCE_REALTIME_CHART",
-        "telegram_configured": telegram_configured(),
         "database_engine": "postgresql" if is_postgres() else "sqlite",
     }
 
@@ -147,7 +146,32 @@ def get_pair_performance(session: dict[str, object] = Depends(require_session)) 
 
 @app.get("/strategy-settings")
 def strategy_settings(session: dict[str, object] = Depends(require_session)) -> dict[str, object]:
-    return get_strategy_settings()
+    settings = get_strategy_settings()
+    settings["telegram_chat_ids"] = []
+    return settings
+
+
+@app.get("/telegram-recipients")
+def telegram_recipients(session: dict[str, object] = Depends(require_session)) -> list[dict[str, object]]:
+    return recipients_for_session(session)
+
+
+@app.post("/telegram-recipients")
+def add_telegram_recipient_route(
+    payload: dict[str, object] = Body(...),
+    session: dict[str, object] = Depends(require_session),
+) -> list[dict[str, object]]:
+    chat_id = str(payload.get("chat_id", ""))
+    return add_recipient_for_session(session, chat_id)
+
+
+@app.post("/telegram-recipients/remove")
+def remove_telegram_recipient_route(
+    payload: dict[str, object] = Body(...),
+    session: dict[str, object] = Depends(require_session),
+) -> list[dict[str, object]]:
+    recipient_id = str(payload.get("recipient_id", ""))
+    return remove_recipient_for_session(session, recipient_id)
 
 
 @app.post("/strategy-settings")

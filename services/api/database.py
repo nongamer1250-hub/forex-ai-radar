@@ -265,6 +265,21 @@ def init_db() -> None:
         _execute(
             connection,
             """
+            CREATE TABLE IF NOT EXISTS telegram_recipients (
+                recipient_id TEXT PRIMARY KEY,
+                owner_key_id TEXT NOT NULL,
+                owner_role TEXT NOT NULL,
+                chat_id TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """,
+        )
+        _execute(connection, "CREATE INDEX IF NOT EXISTS idx_telegram_recipients_owner_key_id ON telegram_recipients(owner_key_id)")
+        _execute(connection, "CREATE UNIQUE INDEX IF NOT EXISTS idx_telegram_recipients_chat_owner ON telegram_recipients(owner_key_id, chat_id)")
+
+        _execute(
+            connection,
+            """
             CREATE TABLE IF NOT EXISTS feature_logs (
                 signal_id TEXT PRIMARY KEY,
                 pair TEXT NOT NULL,
@@ -821,6 +836,54 @@ def list_auth_sessions(limit: int = 100) -> list[dict[str, Any]]:
             (limit,),
         )
         return _fetchall_dicts(cursor)
+
+
+def list_telegram_recipients(*, owner_key_id: str | None = None, owner_role: str | None = None) -> list[dict[str, Any]]:
+    with get_connection() as connection:
+        filters: list[str] = []
+        params: list[Any] = []
+        placeholder = "%s" if is_postgres() else "?"
+        if owner_key_id is not None:
+            filters.append(f"owner_key_id = {placeholder}")
+            params.append(owner_key_id)
+        if owner_role is not None:
+            filters.append(f"owner_role = {placeholder}")
+            params.append(owner_role)
+        where_clause = f"WHERE {' AND '.join(filters)}" if filters else ""
+        cursor = _execute(
+            connection,
+            f"SELECT * FROM telegram_recipients {where_clause} ORDER BY created_at DESC",
+            tuple(params),
+        )
+        return _fetchall_dicts(cursor)
+
+
+def add_telegram_recipient(*, owner_key_id: str, owner_role: str, chat_id: str) -> dict[str, Any]:
+    record = {
+        "recipient_id": f"tg_{secrets.token_hex(8)}",
+        "owner_key_id": owner_key_id,
+        "owner_role": owner_role,
+        "chat_id": chat_id.strip(),
+        "created_at": now_iso(),
+    }
+    columns = ["recipient_id", "owner_key_id", "owner_role", "chat_id", "created_at"]
+    placeholders = ", ".join(["%s" if is_postgres() else "?" for _ in columns])
+    with get_connection() as connection:
+        _execute(
+            connection,
+            f"INSERT INTO telegram_recipients ({', '.join(columns)}) VALUES ({placeholders})",
+            tuple(record[column] for column in columns),
+        )
+    return record
+
+
+def remove_telegram_recipient(recipient_id: str) -> None:
+    with get_connection() as connection:
+        _execute(
+            connection,
+            "DELETE FROM telegram_recipients WHERE recipient_id = %s" if is_postgres() else "DELETE FROM telegram_recipients WHERE recipient_id = ?",
+            (recipient_id,),
+        )
 
 
 def get_demo_account(account_id: str = "primary") -> dict[str, Any]:

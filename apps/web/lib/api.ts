@@ -10,6 +10,7 @@ import type {
   OptimizerState,
   PairPerformanceState,
   StrategySettings,
+  TelegramRecipient,
   TradeSignal,
 } from "@/lib/types";
 import { AUTH_STORAGE_KEY, STRATEGY_PAIRS } from "@/lib/constants";
@@ -178,5 +179,25 @@ export async function revokeUserAccessKey(key_id: string): Promise<AdminState | 
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ key_id }),
+  });
+}
+
+export async function getTelegramRecipients(): Promise<TelegramRecipient[]> {
+  return fetchJson<TelegramRecipient[]>("/telegram-recipients", []);
+}
+
+export async function addTelegramRecipient(chat_id: string): Promise<TelegramRecipient[]> {
+  return fetchJson<TelegramRecipient[]>("/telegram-recipients", [], {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id }),
+  });
+}
+
+export async function removeTelegramRecipient(recipient_id: string): Promise<TelegramRecipient[]> {
+  return fetchJson<TelegramRecipient[]>("/telegram-recipients/remove", [], {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ recipient_id }),
   });
 }

@@ -4,12 +4,11 @@ import os
 
 import httpx
 
-from database import get_strategy_settings, has_notification, has_open_entry_notification, mark_notification_sent
+from database import has_notification, has_open_entry_notification, list_telegram_recipients, mark_notification_sent
 
 
 def telegram_chat_ids() -> list[str]:
-    settings = get_strategy_settings()
-    configured_ids = [str(item).strip() for item in settings.get("telegram_chat_ids", []) if str(item).strip()]
+    configured_ids = [str(item["chat_id"]).strip() for item in list_telegram_recipients() if str(item.get("chat_id", "")).strip()]
     if configured_ids:
         return configured_ids
     raw = os.getenv("TELEGRAM_CHAT_IDS") or os.getenv("TELEGRAM_CHAT_ID", "")

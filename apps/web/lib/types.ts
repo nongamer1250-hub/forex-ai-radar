@@ -178,3 +178,11 @@ export interface AdminState {
   generated_keys: AccessKeyRecord[];
   active_sessions: AdminSessionRecord[];
 }
+
+export interface TelegramRecipient {
+  recipient_id: string;
+  owner_key_id: string;
+  owner_role: "ADMIN" | "USER";
+  chat_id: string;
+  created_at: string;
+}

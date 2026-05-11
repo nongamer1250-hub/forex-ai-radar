@@ -5,9 +5,10 @@ import { useEffect, useState } from "react";
 
 import { MetricPill, SectionHeader, TerminalShell, panelClassName } from "@/components/terminal-ui";
 import { useAuth } from "@/components/use-auth";
+import { addTelegramRecipient, getTelegramRecipients, removeTelegramRecipient } from "@/lib/api";
 import { useDashboardData } from "@/components/use-live-data";
 import { STRATEGY_PAIRS, STRATEGY_SETUPS } from "@/lib/constants";
-import type { StrategySettings } from "@/lib/types";
+import type { StrategySettings, TelegramRecipient } from "@/lib/types";
 
 const defaultSettings: StrategySettings = {
   enabled_pairs: [...STRATEGY_PAIRS],
@@ -21,15 +22,19 @@ export function SettingsPage() {
   const { session } = useAuth();
   const { data, saveSettings, applyOptimizerNow, hardReset, isPending } = useDashboardData();
   const [settings, setSettings] = useState<StrategySettings>(defaultSettings);
-  const [chatIdsInput, setChatIdsInput] = useState("");
+  const [recipientInput, setRecipientInput] = useState("");
+  const [recipients, setRecipients] = useState<TelegramRecipient[]>([]);
 
   useEffect(() => {
     if (!data?.strategySettings) {
       return;
     }
     setSettings(data.strategySettings);
-    setChatIdsInput((data.strategySettings.telegram_chat_ids ?? []).join(", "));
   }, [data?.strategySettings]);
+
+  useEffect(() => {
+    void getTelegramRecipients().then(setRecipients);
+  }, []);
 
   return (
     <TerminalShell
@@ -37,8 +42,8 @@ export function SettingsPage() {
       subtitle="Control live pair routing, Telegram recipients, optimizer rules, and reset operations."
       actions={
         <>
-          <MetricPill label="Recipients" value={String(settings.telegram_chat_ids.length)} />
           <MetricPill label="Mode" value={session?.role === "ADMIN" ? "Operator" : "Read only"} />
+          <MetricPill label="TG Slots" value={String(recipients.length)} />
         </>
       }
     >
@@ -114,25 +119,58 @@ export function SettingsPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-slate-500">Telegram chat ids</label>
-              <textarea
-                className="min-h-24 w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2"
-                disabled={session?.role !== "ADMIN"}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setChatIdsInput(value);
-                  setSettings((current) => ({
-                    ...current,
-                    telegram_chat_ids: value
-                      .split(",")
-                      .map((item) => item.trim())
-                      .filter(Boolean),
-                  }));
-                }}
-                placeholder="5834149438, 1234567890"
-                value={chatIdsInput}
-              />
+              <label className="mb-2 block text-slate-500">{session?.role === "ADMIN" ? "Telegram chat ids" : "Telegram chat id"}</label>
+              <div className="flex gap-2">
+                <input
+                  className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2"
+                  maxLength={32}
+                  onChange={(event) => setRecipientInput(event.target.value)}
+                  placeholder={session?.role === "ADMIN" ? "Add another chat id" : "Add your chat id"}
+                  value={recipientInput}
+                />
+                <button
+                  className="rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-3 py-2 text-cyan-100 transition hover:bg-cyan-300/20 disabled:opacity-60"
+                  disabled={!recipientInput.trim() || (session?.role !== "ADMIN" && recipients.length >= 1)}
+                  onClick={() => {
+                    void addTelegramRecipient(recipientInput).then((next) => {
+                      setRecipients(next);
+                      setRecipientInput("");
+                    });
+                  }}
+                  type="button"
+                >
+                  Add
+                </button>
+              </div>
+              <div className="mt-2 grid gap-2">
+                {recipients.map((recipient) => (
+                  <div className="flex items-center justify-between rounded-lg border border-white/8 bg-white/[0.03] px-3 py-2" key={recipient.recipient_id}>
+                    <div className="font-mono text-sm text-white">{recipient.chat_id}</div>
+                    <button
+                      className="rounded-md border border-rose-300/25 bg-rose-300/10 px-2 py-1 text-xs text-rose-100 transition hover:bg-rose-300/20"
+                      onClick={() => {
+                        void removeTelegramRecipient(recipient.recipient_id).then(setRecipients);
+                      }}
+                      type="button"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+              {session?.role !== "ADMIN" ? (
+                <div className="mt-2 text-xs text-slate-500">User accounts can keep only one Telegram destination.</div>
+              ) : null}
             </div>
+
+            {session?.role === "ADMIN" ? (
+              <div>
+                <label className="mb-2 block text-slate-500">Recipient policy</label>
+                <div className="rounded-lg border border-white/8 bg-white/[0.03] px-3 py-3 text-sm text-slate-400">
+                  Admin can add many Telegram chat ids and remove any of them. Each user can keep only one personal chat id.
+                </div>
+              </div>
+            ) : null}
 
             <label className="flex items-center justify-between rounded-lg border border-white/8 bg-white/[0.03] px-2.5 py-2">
               <span className="text-slate-400">Auto pair blocking</span>
@@ -145,45 +183,53 @@ export function SettingsPage() {
               />
             </label>
 
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                className="rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-3 py-2 text-cyan-100 transition hover:bg-cyan-300/20 disabled:opacity-60"
-                disabled={isPending || session?.role !== "ADMIN"}
-                onClick={() => saveSettings(settings)}
-                type="button"
-              >
-                Save controls
-              </button>
-              <button
-                className="rounded-lg border border-rose-300/25 bg-rose-300/10 px-3 py-2 text-rose-100 transition hover:bg-rose-300/20 disabled:opacity-60"
-                disabled={isPending || session?.role !== "ADMIN"}
-                onClick={hardReset}
-                type="button"
-              >
-                Hard reset
-              </button>
-            </div>
+            {session?.role === "ADMIN" ? (
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  className="rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-3 py-2 text-cyan-100 transition hover:bg-cyan-300/20 disabled:opacity-60"
+                  disabled={isPending}
+                  onClick={() => saveSettings(settings)}
+                  type="button"
+                >
+                  Save controls
+                </button>
+                <button
+                  className="rounded-lg border border-rose-300/25 bg-rose-300/10 px-3 py-2 text-rose-100 transition hover:bg-rose-300/20 disabled:opacity-60"
+                  disabled={isPending}
+                  onClick={hardReset}
+                  type="button"
+                >
+                  Hard reset
+                </button>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-white/8 bg-white/[0.03] px-3 py-3 text-sm text-slate-400">
+                Sensitive controls and delivery settings are restricted to the admin terminal.
+              </div>
+            )}
           </div>
         </section>
 
         <aside className="grid content-start gap-3">
-          <section className={`${panelClassName()} rounded-lg p-3`}>
-            <SectionHeader title="Optimizer" icon={SlidersHorizontal} />
-            <div className="grid gap-2 font-mono text-xs">
-              <div className="flex justify-between"><span className="text-slate-500">Auto blocked</span><strong>{data?.optimizer?.auto_blocked_pairs.length ? data.optimizer.auto_blocked_pairs.join(", ") : "None"}</strong></div>
-              <div className="flex justify-between"><span className="text-slate-500">Recommended on</span><strong>{data?.optimizer?.recommended_enabled_pairs.length ?? 0}</strong></div>
-              <div className="flex justify-between"><span className="text-slate-500">Recommended off</span><strong>{data?.optimizer?.recommended_disabled_pairs.length ?? 0}</strong></div>
-              <button
-                className="mt-2 inline-flex items-center justify-between rounded-lg border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-amber-100 transition hover:bg-amber-300/20 disabled:opacity-60"
-                disabled={isPending || session?.role !== "ADMIN"}
-                onClick={applyOptimizerNow}
-                type="button"
-              >
-                <span>Apply optimizer</span>
-                <ChevronRight size={14} />
-              </button>
-            </div>
-          </section>
+          {session?.role === "ADMIN" ? (
+            <section className={`${panelClassName()} rounded-lg p-3`}>
+              <SectionHeader title="Optimizer" icon={SlidersHorizontal} />
+              <div className="grid gap-2 font-mono text-xs">
+                <div className="flex justify-between"><span className="text-slate-500">Auto blocked</span><strong>{data?.optimizer?.auto_blocked_pairs.length ? data.optimizer.auto_blocked_pairs.join(", ") : "None"}</strong></div>
+                <div className="flex justify-between"><span className="text-slate-500">Recommended on</span><strong>{data?.optimizer?.recommended_enabled_pairs.length ?? 0}</strong></div>
+                <div className="flex justify-between"><span className="text-slate-500">Recommended off</span><strong>{data?.optimizer?.recommended_disabled_pairs.length ?? 0}</strong></div>
+                <button
+                  className="mt-2 inline-flex items-center justify-between rounded-lg border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-amber-100 transition hover:bg-amber-300/20 disabled:opacity-60"
+                  disabled={isPending}
+                  onClick={applyOptimizerNow}
+                  type="button"
+                >
+                  <span>Apply optimizer</span>
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </section>
+          ) : null}
 
           <section className={`${panelClassName()} rounded-lg p-3`}>
             <SectionHeader title="Live Learning" icon={Settings} />
