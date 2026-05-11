@@ -121,7 +121,7 @@ def analytics(session: dict[str, object] = Depends(require_session)) -> dict[str
 
 
 @app.post("/auth/login")
-def auth_login(payload: dict[str, object] = Body(...), request: Request | None = None) -> dict[str, object]:
+def auth_login(request: Request, payload: dict[str, object] = Body(...)) -> dict[str, object]:
     access_key = str(payload.get("access_key", ""))
     user_name = str(payload.get("user_name", ""))
     forwarded_for = request.headers.get("x-forwarded-for", "") if request else ""
