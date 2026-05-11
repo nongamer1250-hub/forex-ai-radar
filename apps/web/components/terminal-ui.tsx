@@ -3,21 +3,44 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { Activity, Bot, Gauge, LayoutGrid, LogOut, Radio, Settings, Sparkles, Wallet } from "lucide-react";
+import {
+  Activity,
+  ArrowUpRight,
+  Bell,
+  Bot,
+  Gauge,
+  LayoutGrid,
+  LogOut,
+  Radio,
+  Settings,
+  Shield,
+  Sparkles,
+  Wallet,
+} from "lucide-react";
 
 import { useAuth } from "@/components/use-auth";
 import type { TradeSignal, UserPreferences } from "@/lib/types";
 
 const navItems = [
-  { href: "/", label: "Overview", icon: LayoutGrid, note: "Terminal status" },
-  { href: "/signals", label: "Signals", icon: Radio, note: "Execution surface" },
-  { href: "/analytics", label: "Analytics", icon: Gauge, note: "History and edge" },
-  { href: "/demo", label: "Demo", icon: Wallet, note: "Paper account" },
-  { href: "/settings", label: "Settings", icon: Settings, note: "User and routing" },
+  { href: "/", label: "Overview", icon: LayoutGrid, note: "Market desk" },
+  { href: "/signals", label: "Signals", icon: Radio, note: "Execution board" },
+  { href: "/analytics", label: "Analytics", icon: Gauge, note: "Performance" },
+  { href: "/demo", label: "Demo", icon: Wallet, note: "Paper capital" },
+  { href: "/settings", label: "Settings", icon: Settings, note: "Routing and profile" },
 ];
 
 export function panelClassName(extra = "") {
-  return `border border-white/7 bg-[linear-gradient(180deg,rgba(10,14,23,0.96),rgba(5,8,15,0.98))] shadow-[0_0_0_1px_rgba(255,255,255,0.02),0_18px_48px_rgba(2,6,23,0.36)] ${extra}`.trim();
+  return [
+    "border border-white/8 bg-[linear-gradient(180deg,rgba(12,18,30,0.94),rgba(7,11,19,0.98))]",
+    "shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_24px_64px_rgba(2,6,23,0.42)]",
+    extra,
+  ]
+    .join(" ")
+    .trim();
+}
+
+export function surfaceClassName(extra = "") {
+  return `${panelClassName("rounded-2xl")} ${extra}`.trim();
 }
 
 export function formatNumber(value: number, suffix = "") {
@@ -26,6 +49,15 @@ export function formatNumber(value: number, suffix = "") {
 
 export function formatSignalTime(timestamp: string) {
   return new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+export function formatDateTime(timestamp: string) {
+  return new Date(timestamp).toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export function signalTone(signal: TradeSignal["signal"]) {
@@ -41,6 +73,15 @@ export function statusTone(status: string) {
   return "text-slate-400";
 }
 
+export function PageEyebrow({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-cyan-300/18 bg-cyan-300/10 px-2.5 py-1 font-mono text-[11px] text-cyan-100">
+      <span className="size-1.5 rounded-full bg-cyan-300" />
+      {children}
+    </span>
+  );
+}
+
 export function SectionHeader({
   title,
   detail,
@@ -51,10 +92,16 @@ export function SectionHeader({
   icon?: typeof Activity;
 }) {
   return (
-    <div className="mb-3 flex items-center justify-between gap-3">
-      <div className="flex items-center gap-2">
-        {Icon ? <Icon size={15} className="text-slate-500" /> : null}
-        <h2 className="text-sm font-semibold text-slate-100">{title}</h2>
+    <div className="mb-4 flex items-center justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-3">
+        {Icon ? (
+          <div className="grid size-8 place-items-center rounded-xl border border-white/8 bg-white/[0.04] text-slate-300">
+            <Icon size={15} />
+          </div>
+        ) : null}
+        <div className="min-w-0">
+          <h2 className="truncate text-sm font-semibold text-white">{title}</h2>
+        </div>
       </div>
       {detail ? <span className="font-mono text-[11px] text-slate-500">{detail}</span> : null}
     </div>
@@ -63,25 +110,164 @@ export function SectionHeader({
 
 export function MetricPill({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (
-    <div className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] ${tone ?? "border-white/10 bg-white/[0.04] text-slate-300"}`}>
+    <div
+      className={`inline-flex h-8 items-center gap-2 rounded-full border px-3 text-[11px] ${
+        tone ?? "border-white/10 bg-white/[0.04] text-slate-300"
+      }`}
+    >
       <span className="text-slate-500">{label}</span>
       <strong className="font-mono text-slate-100">{value}</strong>
     </div>
   );
 }
 
-export function ConfidenceMeter({ value }: { value: number }) {
-  const percent = Math.round(value * 100);
-  const tone = percent >= 80 ? "bg-emerald-300" : percent >= 60 ? "bg-cyan-300" : "bg-amber-300";
+export function HeroMetric({
+  label,
+  value,
+  footnote,
+  accent = "cyan",
+}: {
+  label: string;
+  value: string;
+  footnote?: string;
+  accent?: "cyan" | "emerald" | "amber" | "rose";
+}) {
+  const accentTone =
+    accent === "emerald"
+      ? "from-emerald-300/16 to-transparent text-emerald-200"
+      : accent === "amber"
+        ? "from-amber-300/16 to-transparent text-amber-100"
+        : accent === "rose"
+          ? "from-rose-300/16 to-transparent text-rose-200"
+          : "from-cyan-300/16 to-transparent text-cyan-100";
+
   return (
-    <div className="grid gap-1.5">
+    <div className={`${surfaceClassName()} relative overflow-hidden p-4 sm:p-5`}>
+      <div className={`pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b ${accentTone} opacity-70`} />
+      <div className="relative">
+        <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">{label}</div>
+        <div className="mt-3 font-mono text-2xl font-semibold text-white sm:text-[30px]">{value}</div>
+        {footnote ? <div className="mt-2 text-xs text-slate-400">{footnote}</div> : null}
+      </div>
+    </div>
+  );
+}
+
+export function ConfidenceMeter({ value }: { value: number }) {
+  const percent = Math.max(0, Math.min(100, Math.round(value * 100)));
+  const tone = percent >= 80 ? "from-emerald-300 to-cyan-300" : percent >= 60 ? "from-cyan-300 to-sky-300" : "from-amber-300 to-yellow-300";
+
+  return (
+    <div className="grid gap-2">
       <div className="flex items-center justify-between font-mono text-[11px] text-slate-400">
         <span>Confidence</span>
         <strong className="text-slate-100">{percent}%</strong>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
-        <div className={`h-full rounded-full ${tone}`} style={{ width: `${percent}%` }} />
+      <div className="h-2 overflow-hidden rounded-full bg-white/[0.08]">
+        <div className={`h-full rounded-full bg-gradient-to-r ${tone}`} style={{ width: `${percent}%` }} />
       </div>
+    </div>
+  );
+}
+
+export function TerminalSurface({
+  title,
+  detail,
+  icon,
+  children,
+  className = "",
+}: {
+  title: string;
+  detail?: string;
+  icon?: typeof Activity;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={`${surfaceClassName()} overflow-hidden ${className}`.trim()}>
+      <div className="border-b border-white/6 px-4 py-4 sm:px-5">
+        <SectionHeader title={title} detail={detail} icon={icon} />
+      </div>
+      <div className="px-4 py-4 sm:px-5">{children}</div>
+    </section>
+  );
+}
+
+export function DataChip({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: string;
+}) {
+  return (
+    <div className={`rounded-2xl border px-3 py-2 ${tone ?? "border-white/8 bg-white/[0.03]"}`}>
+      <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{label}</div>
+      <div className="mt-1 font-mono text-sm text-white">{value}</div>
+    </div>
+  );
+}
+
+export function SignalCard({
+  signal,
+  active = false,
+  compact = false,
+  onClick,
+}: {
+  signal: TradeSignal;
+  active?: boolean;
+  compact?: boolean;
+  onClick?: () => void;
+}) {
+  const Wrapper = onClick ? "button" : "div";
+
+  return (
+    <Wrapper
+      className={`group w-full rounded-2xl border text-left transition ${
+        active
+          ? "border-cyan-300/30 bg-cyan-300/[0.09] shadow-[0_0_0_1px_rgba(34,211,238,0.08)]"
+          : "border-white/8 bg-white/[0.03] hover:border-white/14 hover:bg-white/[0.05]"
+      } ${compact ? "p-3" : "p-4"}`}
+      {...(onClick ? { onClick, type: "button" as const } : {})}
+    >
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <div className="font-mono text-sm font-semibold text-white">{signal.pair}</div>
+          <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-slate-500">{signal.setup_type ?? signal.setup_quality}</div>
+        </div>
+        <span className={`rounded-full border px-2.5 py-1 font-mono text-[11px] ${signalTone(signal.signal)}`}>{signal.signal}</span>
+      </div>
+
+      <div className={`mb-3 grid ${compact ? "grid-cols-3" : "grid-cols-4"} gap-2`}>
+        <DataChip label="RR" value={String(signal.rr)} />
+        <DataChip label="Score" value={String(signal.setup_score)} />
+        <DataChip label="RSI" value={formatNumber(signal.rsi)} />
+        {!compact ? <DataChip label="Bias" value={String(signal.learning_bias ?? 0)} /> : null}
+      </div>
+
+      <ConfidenceMeter value={signal.confidence} />
+
+      <div className="mt-3 flex items-center justify-between font-mono text-[11px] text-slate-500">
+        <span>{signal.trade_status}</span>
+        <span>{formatSignalTime(signal.timestamp)}</span>
+      </div>
+    </Wrapper>
+  );
+}
+
+export function EmptyState({
+  title,
+  body,
+}: {
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-center">
+      <div className="text-sm font-medium text-white">{title}</div>
+      <p className="mx-auto mt-2 max-w-md text-sm text-slate-400">{body}</p>
     </div>
   );
 }
@@ -102,44 +288,58 @@ export function TerminalShell({
   const pathname = usePathname();
   const { session, signOut } = useAuth();
   const density = preferences?.density_mode ?? "compact";
-  const notificationState = preferences?.notifications_enabled ? "On" : "Off";
+  const now = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date());
 
   return (
-    <main className="min-h-screen bg-[#04060b] text-slate-100">
-      <div className="grid min-h-screen grid-cols-1 xl:grid-cols-[248px_minmax(0,1fr)]">
-        <aside className="hidden border-r border-white/6 bg-[linear-gradient(180deg,#060911,#05070d)] xl:block">
-          <div className="flex h-full flex-col px-4 py-4">
-            <Link className="mb-5 rounded-xl border border-cyan-300/20 bg-cyan-300/10 p-3" href="/">
+    <main className="min-h-screen bg-[#04070d] text-slate-100">
+      <div className="mx-auto grid min-h-screen max-w-[1760px] grid-cols-1 xl:grid-cols-[280px_minmax(0,1fr)]">
+        <aside className="hidden border-r border-white/6 xl:block">
+          <div className="sticky top-0 flex h-screen flex-col gap-4 px-5 py-5">
+            <div className={`${surfaceClassName()} p-4`}>
               <div className="flex items-center gap-3">
-                <div className="grid size-10 place-items-center rounded-lg border border-cyan-300/20 bg-[#07131f] font-mono text-sm font-black text-cyan-100">FX</div>
-                <div>
-                  <div className="text-sm font-semibold text-white">Forex AI Radar</div>
-                  <div className="text-[11px] text-slate-500">Private operator terminal</div>
+                <div className="grid size-12 place-items-center rounded-2xl bg-[linear-gradient(180deg,rgba(34,211,238,0.18),rgba(34,211,238,0.06))] font-mono text-base font-black text-cyan-100 shadow-[0_0_32px_rgba(34,211,238,0.18)]">
+                  FX
+                </div>
+                <div className="min-w-0">
+                  <div className="truncate text-base font-semibold text-white">Forex AI Radar</div>
+                  <div className="text-xs text-slate-500">Private execution terminal</div>
                 </div>
               </div>
-            </Link>
+            </div>
 
-            <nav className="grid gap-1.5">
+            <nav className="grid gap-2">
               {navItems.map((item) => {
                 const active = pathname === item.href;
                 return (
                   <Link
-                    className={`rounded-xl border px-3 py-3 transition ${
+                    className={`rounded-2xl border px-3 py-3 transition ${
                       active
-                        ? "border-cyan-300/25 bg-cyan-300/10"
-                        : "border-transparent bg-transparent hover:border-white/8 hover:bg-white/[0.03]"
+                        ? "border-cyan-300/30 bg-cyan-300/[0.1]"
+                        : "border-white/8 bg-white/[0.02] hover:border-white/14 hover:bg-white/[0.04]"
                     }`}
                     href={item.href}
                     key={item.href}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`grid size-9 place-items-center rounded-lg ${active ? "bg-cyan-300/12 text-cyan-100" : "bg-white/[0.03] text-slate-400"}`}>
-                        <item.icon size={16} />
+                      <div
+                        className={`grid size-10 place-items-center rounded-xl ${
+                          active
+                            ? "bg-cyan-300/14 text-cyan-100"
+                            : "bg-white/[0.04] text-slate-400"
+                        }`}
+                      >
+                        <item.icon size={17} />
                       </div>
                       <div className="min-w-0">
                         <div className={`text-sm font-medium ${active ? "text-white" : "text-slate-200"}`}>{item.label}</div>
                         <div className="truncate text-[11px] text-slate-500">{item.note}</div>
                       </div>
+                      {active ? <ArrowUpRight size={13} className="ml-auto text-cyan-200" /> : null}
                     </div>
                   </Link>
                 );
@@ -147,17 +347,29 @@ export function TerminalShell({
             </nav>
 
             <div className="mt-auto grid gap-3">
-              <div className="rounded-xl border border-white/8 bg-white/[0.03] p-3">
-                <div className="mb-2 flex items-center gap-2">
+              <div className={`${surfaceClassName()} p-4`}>
+                <div className="mb-3 flex items-center gap-2">
                   <Sparkles size={14} className="text-cyan-300" />
                   <span className="text-sm font-medium text-white">{session?.user_name ?? "Guest"}</span>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {session ? <MetricPill label={session.role} value={preferences?.density_mode ?? "compact"} /> : null}
+                <div className="grid gap-2">
+                  {session ? (
+                    <MetricPill
+                      label="Role"
+                      value={session.role}
+                      tone={
+                        session.role === "ADMIN"
+                          ? "border-amber-300/20 bg-amber-300/10 text-amber-100"
+                          : "border-white/10 bg-white/[0.04] text-slate-300"
+                      }
+                    />
+                  ) : null}
+                  {preferences ? <MetricPill label="Watchlist" value={String(preferences.watchlist.length)} /> : null}
                 </div>
               </div>
+
               <button
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm text-slate-200 transition hover:border-white/15 hover:bg-white/[0.07]"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 transition hover:border-white/16 hover:bg-white/[0.07]"
                 onClick={() => {
                   void signOut();
                 }}
@@ -171,61 +383,67 @@ export function TerminalShell({
         </aside>
 
         <section className="min-w-0">
-          <header className="sticky top-0 z-20 border-b border-white/6 bg-[rgba(4,6,11,0.92)] px-4 py-4 backdrop-blur xl:px-6">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <header className="sticky top-0 z-30 border-b border-white/6 bg-[rgba(4,7,13,0.86)] backdrop-blur-xl">
+            <div className="mx-auto flex w-full max-w-[1760px] flex-col gap-4 px-4 py-4 sm:px-5 xl:px-8">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="min-w-0">
-                  <div className="mb-2 flex items-center gap-2">
-                    <span className="inline-flex items-center rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 font-mono text-[11px] text-cyan-100">
-                      Railway + Vercel live
-                    </span>
-                    <span className="hidden text-[11px] text-slate-500 sm:block">Persistent key-scoped terminal state</span>
+                  <PageEyebrow>Live market workspace</PageEyebrow>
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <h1 className="text-[28px] font-semibold tracking-tight text-white sm:text-[34px]">{title}</h1>
+                    <MetricPill label="Updated" value={now} />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Bot size={16} className="text-cyan-300" />
-                    <h1 className="text-xl font-semibold text-white sm:text-2xl">{title}</h1>
-                  </div>
-                  <p className="mt-1 text-sm text-slate-400">{subtitle}</p>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">{subtitle}</p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  {session ? <MetricPill label={session.role} value={session.user_name} /> : null}
-                  {preferences ? <MetricPill label="Watchlist" value={String(preferences.watchlist.length)} /> : null}
+                  {session ? (
+                    <MetricPill
+                      label={session.role}
+                      value={session.user_name}
+                      tone={
+                        session.role === "ADMIN"
+                          ? "border-amber-300/20 bg-amber-300/10 text-amber-100"
+                          : "border-white/10 bg-white/[0.04] text-slate-300"
+                      }
+                    />
+                  ) : null}
+                  {preferences ? <MetricPill label="Default Pair" value={preferences.selected_pair} /> : null}
                   {actions}
                 </div>
               </div>
 
-              {preferences ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  <MetricPill label="Selected Pair" value={preferences.selected_pair} />
+              <div className="flex flex-wrap gap-2">
+                <MetricPill label="Infra" value="Railway + Vercel" />
+                <MetricPill label="Feed" value="Yahoo Finance" tone="border-emerald-300/20 bg-emerald-300/10 text-emerald-100" />
+                {preferences ? (
                   <MetricPill
-                    label="Notifications"
-                    value={notificationState}
+                    label="Alerts"
+                    value={preferences.notifications_enabled ? "On" : "Off"}
                     tone={
                       preferences.notifications_enabled
                         ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-100"
                         : "border-amber-300/20 bg-amber-300/10 text-amber-100"
                     }
                   />
-                  <MetricPill label="Density" value={preferences.density_mode} />
-                </div>
-              ) : null}
+                ) : null}
+                {preferences ? <MetricPill label="Density" value={preferences.density_mode} /> : null}
+              </div>
 
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 xl:hidden">
+              <div className="grid grid-cols-5 gap-2 xl:hidden">
                 {navItems.map((item) => {
                   const active = pathname === item.href;
                   return (
                     <Link
-                      className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition ${
+                      className={`flex min-w-0 flex-col items-center gap-2 rounded-2xl border px-2 py-3 text-center text-[11px] transition ${
                         active
-                          ? "border-cyan-300/30 bg-cyan-300/12 text-cyan-100"
-                          : "border-white/8 bg-white/[0.03] text-slate-300 hover:border-white/15"
+                          ? "border-cyan-300/30 bg-cyan-300/[0.12] text-cyan-100"
+                          : "border-white/8 bg-white/[0.03] text-slate-300 hover:border-white/14"
                       }`}
                       href={item.href}
                       key={item.href}
                     >
-                      <item.icon size={14} className="text-slate-500" />
-                      <span>{item.label}</span>
+                      <item.icon size={16} className={active ? "text-cyan-200" : "text-slate-500"} />
+                      <span className="truncate">{item.label}</span>
                     </Link>
                   );
                 })}
@@ -233,11 +451,59 @@ export function TerminalShell({
             </div>
           </header>
 
-          <div className="mx-auto w-full max-w-[1720px]">
-            <div className={`px-3 sm:px-4 xl:px-6 ${density === "comfortable" ? "py-5 space-y-5" : "py-3 space-y-3"}`}>{children}</div>
+          <div className="mx-auto w-full max-w-[1760px] px-4 pb-24 pt-4 sm:px-5 xl:px-8 xl:pb-8">
+            <div className={density === "comfortable" ? "space-y-5" : "space-y-4"}>{children}</div>
           </div>
         </section>
       </div>
+
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 border-t border-white/6 bg-[rgba(4,7,13,0.84)] px-3 py-3 backdrop-blur-xl xl:hidden">
+        <div className="mx-auto flex max-w-md items-center justify-between rounded-2xl border border-white/8 bg-white/[0.04] px-3 py-2">
+          {navItems.map((item) => {
+            const active = pathname === item.href;
+            return (
+              <Link
+                className={`pointer-events-auto flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] ${
+                  active ? "bg-cyan-300/[0.12] text-cyan-100" : "text-slate-400"
+                }`}
+                href={item.href}
+                key={item.href}
+              >
+                <item.icon size={16} />
+                <span className="truncate">{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
     </main>
   );
+}
+
+export function StatusBanner({
+  role,
+  pair,
+  status,
+}: {
+  role: string;
+  pair: string;
+  status: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-cyan-300/18 bg-[linear-gradient(90deg,rgba(34,211,238,0.12),rgba(34,211,238,0.04))] px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          {role === "telegram" ? <Bell size={15} className="text-cyan-200" /> : <Shield size={15} className="text-cyan-200" />}
+          <span className="text-sm text-white">{role === "telegram" ? "Telegram anchor trade" : "Active terminal signal"}</span>
+        </div>
+        <div className={`font-mono text-sm ${statusTone(status)}`}>
+          {pair} / {status}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function MiniStatGrid({ children }: { children: ReactNode }) {
+  return <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{children}</div>;
 }
