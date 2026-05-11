@@ -1,0 +1,10 @@
+node_modules
+.next
+.env
+.env.local
+*.sqlite3
+__pycache__
+.venv
+*.egg-info
+.logs
+services/api/.env
