@@ -16,6 +16,7 @@ const nextConfig: NextConfig = {
       {
         source: "/_next/static/:path*",
         headers: [
+          { key: "Access-Control-Allow-Origin", value: "https://forex-ai-radar-web.vercel.app" },
           { key: "Content-Security-Policy", value: "default-src 'none'; frame-ancestors 'none'; sandbox" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
