@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { Activity, Bot, Gauge, LayoutGrid, Radio, Settings, Wallet } from "lucide-react";
+import { Activity, Bot, Gauge, LayoutGrid, LogOut, Radio, Settings, Wallet } from "lucide-react";
 
+import { useAuth } from "@/components/use-auth";
 import type { TradeSignal } from "@/lib/types";
 
 const navItems = [
@@ -97,6 +98,7 @@ export function TerminalShell({
   children: ReactNode;
 }) {
   const pathname = usePathname();
+  const { session, signOut } = useAuth();
 
   return (
     <main className="min-h-screen bg-[#05070d] text-slate-100">
@@ -149,7 +151,20 @@ export function TerminalShell({
                   </div>
                   <p className="mt-1 text-sm text-slate-400">{subtitle}</p>
                 </div>
-                {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+                <div className="flex flex-wrap items-center gap-2">
+                  {session ? <MetricPill label={session.role} value={session.user_name} /> : null}
+                  {actions}
+                  <button
+                    className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-200 transition hover:border-white/15 hover:bg-white/[0.08]"
+                    onClick={() => {
+                      void signOut();
+                    }}
+                    type="button"
+                  >
+                    <LogOut size={14} />
+                    Logout
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 xl:hidden">

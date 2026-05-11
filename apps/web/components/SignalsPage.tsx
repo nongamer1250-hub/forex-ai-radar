@@ -5,9 +5,11 @@ import { useState } from "react";
 
 import { TradingViewWidget } from "@/components/TradingViewWidget";
 import { ConfidenceMeter, MetricPill, SectionHeader, TerminalShell, formatSignalTime, panelClassName, signalTone, statusTone } from "@/components/terminal-ui";
+import { useAuth } from "@/components/use-auth";
 import { useDashboardData } from "@/components/use-live-data";
 
 export function SignalsPage() {
+  const { session } = useAuth();
   const { data, forceScanNow, isPending } = useDashboardData();
   const [selectedPair, setSelectedPair] = useState("EURUSD");
   const signals = data?.signals ?? [];
@@ -21,15 +23,17 @@ export function SignalsPage() {
       actions={
         <>
           <MetricPill label="Session" value={activeSignal?.session ?? "Offline"} />
-          <button
-            className="inline-flex items-center gap-2 rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-3 py-2 text-sm text-cyan-100 transition hover:bg-cyan-300/20 disabled:opacity-60"
-            disabled={isPending}
-            onClick={forceScanNow}
-            type="button"
-          >
-            <RefreshCw size={16} />
-            {isPending ? "Scanning" : "Force Scan"}
-          </button>
+          {session?.role === "ADMIN" ? (
+            <button
+              className="inline-flex items-center gap-2 rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-3 py-2 text-sm text-cyan-100 transition hover:bg-cyan-300/20 disabled:opacity-60"
+              disabled={isPending}
+              onClick={forceScanNow}
+              type="button"
+            >
+              <RefreshCw size={16} />
+              {isPending ? "Scanning" : "Force Scan"}
+            </button>
+          ) : null}
         </>
       }
     >

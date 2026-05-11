@@ -4,6 +4,7 @@ import { ChevronRight, Settings, SlidersHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { MetricPill, SectionHeader, TerminalShell, panelClassName } from "@/components/terminal-ui";
+import { useAuth } from "@/components/use-auth";
 import { useDashboardData } from "@/components/use-live-data";
 import { STRATEGY_PAIRS, STRATEGY_SETUPS } from "@/lib/constants";
 import type { StrategySettings } from "@/lib/types";
@@ -17,6 +18,7 @@ const defaultSettings: StrategySettings = {
 };
 
 export function SettingsPage() {
+  const { session } = useAuth();
   const { data, saveSettings, applyOptimizerNow, hardReset, isPending } = useDashboardData();
   const [settings, setSettings] = useState<StrategySettings>(defaultSettings);
   const [chatIdsInput, setChatIdsInput] = useState("");
@@ -33,7 +35,12 @@ export function SettingsPage() {
     <TerminalShell
       title="Settings"
       subtitle="Control live pair routing, Telegram recipients, optimizer rules, and reset operations."
-      actions={<MetricPill label="Recipients" value={String(settings.telegram_chat_ids.length)} />}
+      actions={
+        <>
+          <MetricPill label="Recipients" value={String(settings.telegram_chat_ids.length)} />
+          <MetricPill label="Mode" value={session?.role === "ADMIN" ? "Operator" : "Read only"} />
+        </>
+      }
     >
       <div className="grid gap-3 2xl:grid-cols-[minmax(0,1fr)_340px]">
         <section className={`${panelClassName()} rounded-lg p-3`}>
@@ -47,6 +54,7 @@ export function SettingsPage() {
                   return (
                     <button
                       className={`rounded-lg border px-2 py-2 text-left transition ${enabled ? "border-cyan-300/35 bg-cyan-300/10 text-cyan-100" : "border-white/8 bg-white/[0.03] text-slate-400 hover:border-white/15"}`}
+                      disabled={session?.role !== "ADMIN"}
                       key={pair}
                       onClick={() =>
                         setSettings((current) => ({
@@ -71,6 +79,7 @@ export function SettingsPage() {
                   return (
                     <button
                       className={`rounded-lg border px-2 py-2 text-left transition ${enabled ? "border-emerald-300/35 bg-emerald-300/10 text-emerald-100" : "border-white/8 bg-white/[0.03] text-slate-400 hover:border-white/15"}`}
+                      disabled={session?.role !== "ADMIN"}
                       key={setup}
                       onClick={() =>
                         setSettings((current) => ({
@@ -94,6 +103,7 @@ export function SettingsPage() {
               </div>
               <input
                 className="w-full accent-cyan-300"
+                disabled={session?.role !== "ADMIN"}
                 max={0.9}
                 min={0.4}
                 onChange={(event) => setSettings((current) => ({ ...current, min_confidence: Number(event.target.value) }))}
@@ -107,6 +117,7 @@ export function SettingsPage() {
               <label className="mb-2 block text-slate-500">Telegram chat ids</label>
               <textarea
                 className="min-h-24 w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2"
+                disabled={session?.role !== "ADMIN"}
                 onChange={(event) => {
                   const value = event.target.value;
                   setChatIdsInput(value);
@@ -128,6 +139,7 @@ export function SettingsPage() {
               <input
                 checked={settings.auto_block_enabled}
                 className="accent-cyan-300"
+                disabled={session?.role !== "ADMIN"}
                 onChange={(event) => setSettings((current) => ({ ...current, auto_block_enabled: event.target.checked }))}
                 type="checkbox"
               />
@@ -136,7 +148,7 @@ export function SettingsPage() {
             <div className="grid grid-cols-2 gap-2">
               <button
                 className="rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-3 py-2 text-cyan-100 transition hover:bg-cyan-300/20 disabled:opacity-60"
-                disabled={isPending}
+                disabled={isPending || session?.role !== "ADMIN"}
                 onClick={() => saveSettings(settings)}
                 type="button"
               >
@@ -144,7 +156,7 @@ export function SettingsPage() {
               </button>
               <button
                 className="rounded-lg border border-rose-300/25 bg-rose-300/10 px-3 py-2 text-rose-100 transition hover:bg-rose-300/20 disabled:opacity-60"
-                disabled={isPending}
+                disabled={isPending || session?.role !== "ADMIN"}
                 onClick={hardReset}
                 type="button"
               >
@@ -163,7 +175,7 @@ export function SettingsPage() {
               <div className="flex justify-between"><span className="text-slate-500">Recommended off</span><strong>{data?.optimizer?.recommended_disabled_pairs.length ?? 0}</strong></div>
               <button
                 className="mt-2 inline-flex items-center justify-between rounded-lg border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-amber-100 transition hover:bg-amber-300/20 disabled:opacity-60"
-                disabled={isPending}
+                disabled={isPending || session?.role !== "ADMIN"}
                 onClick={applyOptimizerNow}
                 type="button"
               >

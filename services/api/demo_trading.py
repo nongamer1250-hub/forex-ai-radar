@@ -3,12 +3,19 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from database import get_demo_account, get_demo_trades, get_open_demo_trades, insert_demo_trade, update_demo_trade_status
+from database import (
+    get_demo_account,
+    get_demo_trades_for_account,
+    get_open_demo_trades_for_account,
+    insert_demo_trade,
+    update_demo_trade_status,
+)
 from market_data import get_current_price
 
 
 def place_demo_trade(
     *,
+    account_id: str,
     pair: str,
     signal: str,
     units: float,
@@ -20,6 +27,7 @@ def place_demo_trade(
 ) -> dict[str, Any]:
     trade = {
         "demo_trade_id": f"demo-{pair}-{int(datetime.now(UTC).timestamp() * 1000)}",
+        "account_id": account_id,
         "pair": pair,
         "signal": signal,
         "units": round(units, 2),
@@ -48,9 +56,9 @@ def _unrealized_pnl(trade: dict[str, Any], price: float) -> float:
     return round(pnl, 2)
 
 
-def demo_account_snapshot() -> dict[str, Any]:
-    account = get_demo_account()
-    open_trades = get_open_demo_trades()
+def demo_account_snapshot(account_id: str) -> dict[str, Any]:
+    account = get_demo_account(account_id)
+    open_trades = get_open_demo_trades_for_account(account_id)
     enriched_open_trades: list[dict[str, Any]] = []
     unrealized_total = 0.0
 
@@ -74,9 +82,9 @@ def demo_account_snapshot() -> dict[str, Any]:
     }
 
 
-def demo_trade_history(limit: int = 200) -> list[dict[str, Any]]:
-    trades = get_demo_trades(limit=limit)
-    open_ids = {trade["demo_trade_id"] for trade in get_open_demo_trades()}
+def demo_trade_history(account_id: str, limit: int = 200) -> list[dict[str, Any]]:
+    trades = get_demo_trades_for_account(account_id, limit=limit)
+    open_ids = {trade["demo_trade_id"] for trade in get_open_demo_trades_for_account(account_id)}
     history: list[dict[str, Any]] = []
     for trade in trades:
         if trade["demo_trade_id"] in open_ids:
@@ -88,7 +96,17 @@ def demo_trade_history(limit: int = 200) -> list[dict[str, Any]]:
 
 
 def run_demo_trade_manager() -> dict[str, Any]:
-    open_trades = get_open_demo_trades()
+    open_trades = get_open_demo_trades_for_account("primary")
+    if open_trades:
+        return _run_demo_trade_manager_for_account("primary", open_trades)
+    return {"checked": 0, "updated": 0, "updates": []}
+
+
+def run_demo_trade_manager_for_account(account_id: str) -> dict[str, Any]:
+    return _run_demo_trade_manager_for_account(account_id, get_open_demo_trades_for_account(account_id))
+
+
+def _run_demo_trade_manager_for_account(account_id: str, open_trades: list[dict[str, Any]]) -> dict[str, Any]:
     updates: list[dict[str, Any]] = []
 
     for trade in open_trades:
@@ -109,7 +127,7 @@ def run_demo_trade_manager() -> dict[str, Any]:
             continue
 
         realized = _unrealized_pnl(trade, price)
-        update_demo_trade_status(str(trade["demo_trade_id"]), status, price, realized)
+        update_demo_trade_status(str(trade["demo_trade_id"]), account_id, status, price, realized)
         updates.append(
             {
                 "demo_trade_id": trade["demo_trade_id"],

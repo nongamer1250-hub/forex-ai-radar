@@ -4,6 +4,7 @@ import { Activity, RefreshCw, ShieldCheck, Target, TrendingUp } from "lucide-rea
 
 import { TradingViewWidget } from "@/components/TradingViewWidget";
 import { ConfidenceMeter, MetricPill, SectionHeader, TerminalShell, formatNumber, panelClassName, signalTone } from "@/components/terminal-ui";
+import { useAuth } from "@/components/use-auth";
 import { useDashboardData } from "@/components/use-live-data";
 
 function StatCard({ label, value }: { label: string; value: string }) {
@@ -16,6 +17,7 @@ function StatCard({ label, value }: { label: string; value: string }) {
 }
 
 export function OverviewPage() {
+  const { session } = useAuth();
   const { data, forceScanNow, isPending } = useDashboardData();
   const analytics = data?.analytics;
   const topSignals = data?.signals.slice(0, 4) ?? [];
@@ -28,15 +30,17 @@ export function OverviewPage() {
       actions={
         <>
           <MetricPill label="Feed" value="Yahoo Finance" tone="border-emerald-300/20 bg-emerald-300/10 text-emerald-100" />
-          <button
-            className="inline-flex items-center gap-2 rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-3 py-2 text-sm text-cyan-100 transition hover:bg-cyan-300/20 disabled:opacity-60"
-            disabled={isPending}
-            onClick={forceScanNow}
-            type="button"
-          >
-            <RefreshCw size={16} />
-            {isPending ? "Scanning" : "Force Scan"}
-          </button>
+          {session?.role === "ADMIN" ? (
+            <button
+              className="inline-flex items-center gap-2 rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-3 py-2 text-sm text-cyan-100 transition hover:bg-cyan-300/20 disabled:opacity-60"
+              disabled={isPending}
+              onClick={forceScanNow}
+              type="button"
+            >
+              <RefreshCw size={16} />
+              {isPending ? "Scanning" : "Force Scan"}
+            </button>
+          ) : null}
         </>
       }
     >

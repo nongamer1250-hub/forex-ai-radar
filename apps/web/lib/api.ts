@@ -1,5 +1,18 @@
-import type { Analytics, DashboardState, DemoAccount, DemoTrade, LearningStatus, OptimizerState, PairPerformanceState, StrategySettings, TradeSignal } from "@/lib/types";
-import { STRATEGY_PAIRS } from "@/lib/constants";
+import type {
+  AccessKeyRecord,
+  AdminState,
+  Analytics,
+  AuthSession,
+  DashboardState,
+  DemoAccount,
+  DemoTrade,
+  LearningStatus,
+  OptimizerState,
+  PairPerformanceState,
+  StrategySettings,
+  TradeSignal,
+} from "@/lib/types";
+import { AUTH_STORAGE_KEY, STRATEGY_PAIRS } from "@/lib/constants";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 
@@ -16,7 +29,12 @@ const emptyAnalytics: Analytics = {
 
 async function fetchJson<T>(path: string, fallback: T, init?: RequestInit): Promise<T> {
   try {
-    const response = await fetch(`${API_BASE_URL}${path}`, { cache: "no-store", ...init });
+    const headers = new Headers(init?.headers);
+    const token = typeof window === "undefined" ? "" : window.localStorage.getItem(AUTH_STORAGE_KEY) ?? "";
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+    const response = await fetch(`${API_BASE_URL}${path}`, { cache: "no-store", ...init, headers });
     if (!response.ok) {
       throw new Error(`API request failed: ${response.status}`);
     }
@@ -118,4 +136,47 @@ export async function createDemoTrade(payload: {
 
 export async function resetDemoAccount(): Promise<void> {
   await fetchJson("/demo-reset", {}, { method: "POST" });
+}
+
+export async function login(access_key: string, user_name: string): Promise<AuthSession | null> {
+  const session = await fetchJson<AuthSession | null>("/auth/login", null, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ access_key, user_name }),
+  });
+  if (session?.session_token && typeof window !== "undefined") {
+    window.localStorage.setItem(AUTH_STORAGE_KEY, session.session_token);
+  }
+  return session;
+}
+
+export async function getCurrentSession(): Promise<AuthSession | null> {
+  return fetchJson<AuthSession | null>("/auth/session", null);
+}
+
+export async function logout(): Promise<void> {
+  await fetchJson("/auth/logout", {}, { method: "POST" });
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+  }
+}
+
+export async function getAdminState(): Promise<AdminState | null> {
+  return fetchJson<AdminState | null>("/admin/state", null);
+}
+
+export async function createUserAccessKey(label: string): Promise<{ created: AccessKeyRecord; state: AdminState } | null> {
+  return fetchJson<{ created: AccessKeyRecord; state: AdminState } | null>("/admin/access-keys", null, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ label }),
+  });
+}
+
+export async function revokeUserAccessKey(key_id: string): Promise<AdminState | null> {
+  return fetchJson<AdminState | null>("/admin/access-keys/revoke", null, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key_id }),
+  });
 }

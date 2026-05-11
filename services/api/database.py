@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import secrets
 import sqlite3
 from contextlib import contextmanager
 from datetime import UTC, datetime
@@ -187,6 +188,7 @@ def init_db() -> None:
             """
             CREATE TABLE IF NOT EXISTS demo_trades (
                 demo_trade_id TEXT PRIMARY KEY,
+                account_id TEXT NOT NULL DEFAULT 'primary',
                 pair TEXT NOT NULL,
                 signal TEXT NOT NULL,
                 units DOUBLE PRECISION NOT NULL,
@@ -203,8 +205,62 @@ def init_db() -> None:
             )
             """,
         )
+        demo_trade_columns = {
+            row["column_name"] if isinstance(row, dict) and "column_name" in row else row["name"]
+            for row in (
+                _fetchall_dicts(
+                    _execute(
+                        connection,
+                        """
+                        SELECT column_name
+                        FROM information_schema.columns
+                        WHERE table_name = 'demo_trades'
+                        """
+                        if is_postgres()
+                        else "PRAGMA table_info(demo_trades)"
+                    )
+                )
+            )
+        }
+        if "account_id" not in demo_trade_columns:
+            _execute(connection, "ALTER TABLE demo_trades ADD COLUMN account_id TEXT NOT NULL DEFAULT 'primary'")
         _execute(connection, "CREATE INDEX IF NOT EXISTS idx_demo_trades_status ON demo_trades(status)")
         _execute(connection, "CREATE INDEX IF NOT EXISTS idx_demo_trades_opened_at ON demo_trades(opened_at)")
+        _execute(connection, "CREATE INDEX IF NOT EXISTS idx_demo_trades_account_id ON demo_trades(account_id)")
+
+        _execute(
+            connection,
+            """
+            CREATE TABLE IF NOT EXISTS access_keys (
+                key_id TEXT PRIMARY KEY,
+                access_key TEXT NOT NULL UNIQUE,
+                role TEXT NOT NULL,
+                label TEXT NOT NULL,
+                assigned_user TEXT,
+                status TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                redeemed_at TEXT
+            )
+            """,
+        )
+        _execute(connection, "CREATE INDEX IF NOT EXISTS idx_access_keys_role ON access_keys(role)")
+        _execute(connection, "CREATE INDEX IF NOT EXISTS idx_access_keys_status ON access_keys(status)")
+
+        _execute(
+            connection,
+            """
+            CREATE TABLE IF NOT EXISTS auth_sessions (
+                session_token TEXT PRIMARY KEY,
+                key_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                user_name TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                last_seen_at TEXT NOT NULL,
+                revoked_at TEXT
+            )
+            """,
+        )
+        _execute(connection, "CREATE INDEX IF NOT EXISTS idx_auth_sessions_key_id ON auth_sessions(key_id)")
 
         _execute(
             connection,
@@ -615,6 +671,158 @@ def save_strategy_settings(
     return get_strategy_settings()
 
 
+def create_access_key(*, role: str, label: str) -> dict[str, Any]:
+    record = {
+        "key_id": f"key_{secrets.token_hex(8)}",
+        "access_key": f"fxr_{secrets.token_urlsafe(18)}",
+        "role": role,
+        "label": label,
+        "assigned_user": None,
+        "status": "ACTIVE",
+        "created_at": now_iso(),
+        "redeemed_at": None,
+    }
+    columns = ["key_id", "access_key", "role", "label", "assigned_user", "status", "created_at", "redeemed_at"]
+    placeholders = ", ".join(["%s" if is_postgres() else "?" for _ in columns])
+    with get_connection() as connection:
+        _execute(
+            connection,
+            f"INSERT INTO access_keys ({', '.join(columns)}) VALUES ({placeholders})",
+            tuple(record[column] for column in columns),
+        )
+    return record
+
+
+def list_access_keys() -> list[dict[str, Any]]:
+    with get_connection() as connection:
+        cursor = _execute(connection, "SELECT * FROM access_keys ORDER BY created_at DESC")
+        return _fetchall_dicts(cursor)
+
+
+def get_access_key(access_key: str) -> dict[str, Any] | None:
+    with get_connection() as connection:
+        cursor = _execute(
+            connection,
+            "SELECT * FROM access_keys WHERE access_key = %s" if is_postgres() else "SELECT * FROM access_keys WHERE access_key = ?",
+            (access_key,),
+        )
+        return _fetchone_dict(cursor)
+
+
+def bind_access_key(access_key: str, user_name: str) -> dict[str, Any] | None:
+    with get_connection() as connection:
+        redeemed_at = now_iso()
+        _execute(
+            connection,
+            """
+            UPDATE access_keys
+            SET assigned_user = %s, redeemed_at = %s
+            WHERE access_key = %s
+            """
+            if is_postgres()
+            else """
+            UPDATE access_keys
+            SET assigned_user = ?, redeemed_at = ?
+            WHERE access_key = ?
+            """,
+            (user_name, redeemed_at, access_key),
+        )
+    return get_access_key(access_key)
+
+
+def revoke_access_key(key_id: str) -> None:
+    with get_connection() as connection:
+        _execute(
+            connection,
+            "UPDATE access_keys SET status = %s WHERE key_id = %s" if is_postgres() else "UPDATE access_keys SET status = ? WHERE key_id = ?",
+            ("REVOKED", key_id),
+        )
+        _execute(
+            connection,
+            "UPDATE auth_sessions SET revoked_at = %s WHERE key_id = %s AND revoked_at IS NULL"
+            if is_postgres()
+            else "UPDATE auth_sessions SET revoked_at = ? WHERE key_id = ? AND revoked_at IS NULL",
+            (now_iso(), key_id),
+        )
+
+
+def create_auth_session(*, key_id: str, role: str, user_name: str) -> dict[str, Any]:
+    record = {
+        "session_token": f"session_{secrets.token_urlsafe(32)}",
+        "key_id": key_id,
+        "role": role,
+        "user_name": user_name,
+        "created_at": now_iso(),
+        "last_seen_at": now_iso(),
+        "revoked_at": None,
+    }
+    columns = ["session_token", "key_id", "role", "user_name", "created_at", "last_seen_at", "revoked_at"]
+    placeholders = ", ".join(["%s" if is_postgres() else "?" for _ in columns])
+    with get_connection() as connection:
+        _execute(
+            connection,
+            f"INSERT INTO auth_sessions ({', '.join(columns)}) VALUES ({placeholders})",
+            tuple(record[column] for column in columns),
+        )
+    return record
+
+
+def get_auth_session(session_token: str) -> dict[str, Any] | None:
+    with get_connection() as connection:
+        cursor = _execute(
+            connection,
+            """
+            SELECT session.session_token, session.key_id, session.role, session.user_name, session.created_at, session.last_seen_at, session.revoked_at,
+                   key.status AS key_status, key.label, key.assigned_user
+            FROM auth_sessions session
+            LEFT JOIN access_keys key ON key.key_id = session.key_id
+            WHERE session.session_token = %s
+            """
+            if is_postgres()
+            else """
+            SELECT session.session_token, session.key_id, session.role, session.user_name, session.created_at, session.last_seen_at, session.revoked_at,
+                   key.status AS key_status, key.label, key.assigned_user
+            FROM auth_sessions session
+            LEFT JOIN access_keys key ON key.key_id = session.key_id
+            WHERE session.session_token = ?
+            """,
+            (session_token,),
+        )
+        return _fetchone_dict(cursor)
+
+
+def touch_auth_session(session_token: str) -> None:
+    with get_connection() as connection:
+        _execute(
+            connection,
+            "UPDATE auth_sessions SET last_seen_at = %s WHERE session_token = %s"
+            if is_postgres()
+            else "UPDATE auth_sessions SET last_seen_at = ? WHERE session_token = ?",
+            (now_iso(), session_token),
+        )
+
+
+def revoke_auth_session(session_token: str) -> None:
+    with get_connection() as connection:
+        _execute(
+            connection,
+            "UPDATE auth_sessions SET revoked_at = %s WHERE session_token = %s"
+            if is_postgres()
+            else "UPDATE auth_sessions SET revoked_at = ? WHERE session_token = ?",
+            (now_iso(), session_token),
+        )
+
+
+def list_auth_sessions(limit: int = 100) -> list[dict[str, Any]]:
+    with get_connection() as connection:
+        cursor = _execute(
+            connection,
+            "SELECT * FROM auth_sessions ORDER BY created_at DESC LIMIT %s" if is_postgres() else "SELECT * FROM auth_sessions ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        )
+        return _fetchall_dicts(cursor)
+
+
 def get_demo_account(account_id: str = "primary") -> dict[str, Any]:
     with get_connection() as connection:
         cursor = _execute(
@@ -652,21 +860,33 @@ def get_demo_account(account_id: str = "primary") -> dict[str, Any]:
 
 
 def get_demo_trades(limit: int = 200) -> list[dict[str, Any]]:
+    return get_demo_trades_for_account("primary", limit=limit)
+
+
+def get_demo_trades_for_account(account_id: str, limit: int = 200) -> list[dict[str, Any]]:
     with get_connection() as connection:
         cursor = _execute(
             connection,
-            "SELECT * FROM demo_trades ORDER BY opened_at DESC LIMIT %s" if is_postgres() else "SELECT * FROM demo_trades ORDER BY opened_at DESC LIMIT ?",
-            (limit,),
+            "SELECT * FROM demo_trades WHERE account_id = %s ORDER BY opened_at DESC LIMIT %s"
+            if is_postgres()
+            else "SELECT * FROM demo_trades WHERE account_id = ? ORDER BY opened_at DESC LIMIT ?",
+            (account_id, limit),
         )
         return _fetchall_dicts(cursor)
 
 
 def get_open_demo_trades() -> list[dict[str, Any]]:
+    return get_open_demo_trades_for_account("primary")
+
+
+def get_open_demo_trades_for_account(account_id: str) -> list[dict[str, Any]]:
     with get_connection() as connection:
         cursor = _execute(
             connection,
-            "SELECT * FROM demo_trades WHERE status = %s ORDER BY opened_at DESC" if is_postgres() else "SELECT * FROM demo_trades WHERE status = ? ORDER BY opened_at DESC",
-            ("OPEN",),
+            "SELECT * FROM demo_trades WHERE account_id = %s AND status = %s ORDER BY opened_at DESC"
+            if is_postgres()
+            else "SELECT * FROM demo_trades WHERE account_id = ? AND status = ? ORDER BY opened_at DESC",
+            (account_id, "OPEN"),
         )
         return _fetchall_dicts(cursor)
 
@@ -674,6 +894,7 @@ def get_open_demo_trades() -> list[dict[str, Any]]:
 def insert_demo_trade(trade: dict[str, Any]) -> None:
     columns = [
         "demo_trade_id",
+        "account_id",
         "pair",
         "signal",
         "units",
@@ -700,12 +921,12 @@ def insert_demo_trade(trade: dict[str, Any]) -> None:
         )
 
 
-def update_demo_trade_status(demo_trade_id: str, status: str, close_price: float, realized_pnl: float) -> None:
+def update_demo_trade_status(demo_trade_id: str, account_id: str, status: str, close_price: float, realized_pnl: float) -> None:
     with get_connection() as connection:
         cursor = _execute(
             connection,
             "SELECT balance FROM demo_accounts WHERE account_id = %s" if is_postgres() else "SELECT balance FROM demo_accounts WHERE account_id = ?",
-            ("primary",),
+            (account_id,),
         )
         account_row = _fetchone_dict(cursor) or {"balance": 10000.0}
         _execute(
@@ -713,15 +934,15 @@ def update_demo_trade_status(demo_trade_id: str, status: str, close_price: float
             """
             UPDATE demo_trades
             SET status = %s, closed_at = %s, close_price = %s, realized_pnl = %s
-            WHERE demo_trade_id = %s
+            WHERE demo_trade_id = %s AND account_id = %s
             """
             if is_postgres()
             else """
             UPDATE demo_trades
             SET status = ?, closed_at = ?, close_price = ?, realized_pnl = ?
-            WHERE demo_trade_id = ?
+            WHERE demo_trade_id = ? AND account_id = ?
             """,
-            (status, now_iso(), close_price, realized_pnl, demo_trade_id),
+            (status, now_iso(), close_price, realized_pnl, demo_trade_id, account_id),
         )
         _execute(
             connection,
@@ -736,13 +957,17 @@ def update_demo_trade_status(demo_trade_id: str, status: str, close_price: float
             SET balance = ?, updated_at = ?
             WHERE account_id = ?
             """,
-            (float(account_row["balance"]) + realized_pnl, now_iso(), "primary"),
+            (float(account_row["balance"]) + realized_pnl, now_iso(), account_id),
         )
 
 
-def reset_demo_state() -> None:
+def reset_demo_state(account_id: str = "primary") -> None:
     with get_connection() as connection:
-        _execute(connection, "DELETE FROM demo_trades")
+        _execute(
+            connection,
+            "DELETE FROM demo_trades WHERE account_id = %s" if is_postgres() else "DELETE FROM demo_trades WHERE account_id = ?",
+            (account_id,),
+        )
         _execute(
             connection,
             """
@@ -756,7 +981,7 @@ def reset_demo_state() -> None:
             SET start_balance = ?, balance = ?, updated_at = ?
             WHERE account_id = ?
             """,
-            (10000.0, 10000.0, now_iso(), "primary"),
+            (10000.0, 10000.0, now_iso(), account_id),
         )
 
 
@@ -765,4 +990,11 @@ def reset_runtime_state() -> None:
         _execute(connection, "DELETE FROM telegram_notifications")
         _execute(connection, "DELETE FROM feature_logs")
         _execute(connection, "DELETE FROM trades")
-    reset_demo_state()
+        _execute(connection, "DELETE FROM demo_trades")
+        _execute(
+            connection,
+            "UPDATE demo_accounts SET start_balance = %s, balance = %s, updated_at = %s"
+            if is_postgres()
+            else "UPDATE demo_accounts SET start_balance = ?, balance = ?, updated_at = ?",
+            (10000.0, 10000.0, now_iso()),
+        )

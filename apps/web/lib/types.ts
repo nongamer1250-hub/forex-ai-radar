@@ -144,3 +144,37 @@ export interface DemoAccount {
   updated_at: string;
   positions: DemoTrade[];
 }
+
+export interface AuthSession {
+  session_token: string;
+  role: "ADMIN" | "USER";
+  user_name: string;
+  label: string;
+}
+
+export interface AccessKeyRecord {
+  key_id: string;
+  access_key: string;
+  role: "ADMIN" | "USER";
+  label: string;
+  assigned_user?: string | null;
+  status: string;
+  created_at: string;
+  redeemed_at?: string | null;
+}
+
+export interface AdminSessionRecord {
+  session_token: string;
+  key_id: string;
+  role: string;
+  user_name: string;
+  created_at: string;
+  last_seen_at: string;
+  revoked_at?: string | null;
+}
+
+export interface AdminState {
+  admin_key_configured: boolean;
+  generated_keys: AccessKeyRecord[];
+  active_sessions: AdminSessionRecord[];
+}

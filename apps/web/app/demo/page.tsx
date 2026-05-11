@@ -1,5 +1,10 @@
 import { DemoPage } from "@/components/DemoPage";
+import { AuthGate } from "@/components/use-auth";
 
 export default function DemoRoute() {
-  return <DemoPage />;
+  return (
+    <AuthGate>
+      <DemoPage />
+    </AuthGate>
+  );
 }

@@ -4,16 +4,25 @@ from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
-from fastapi import Body, FastAPI
+from fastapi import Body, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
 from analytics import calculate_analytics
+from auth import (
+    admin_key_state,
+    bootstrap_admin_key,
+    create_user_key,
+    current_session_payload,
+    login_with_key,
+    logout_session,
+    require_admin,
+    require_session,
+    revoke_user_key,
+)
 from backtest import run_backtest
 from database import (
-    get_demo_account,
-    get_demo_trades,
     get_active_entry_trade,
     get_all_trades,
     get_latest_entry_trade,
@@ -24,7 +33,7 @@ from database import (
     reset_runtime_state,
     save_strategy_settings,
 )
-from demo_trading import demo_account_snapshot, demo_trade_history, place_demo_trade
+from demo_trading import demo_account_snapshot, demo_trade_history, place_demo_trade, run_demo_trade_manager_for_account
 from learning import learning_status, optimize_strategy, pair_performance
 from scanner import force_scan
 from telegram import telegram_configured
@@ -41,6 +50,7 @@ def scheduled_scan() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    bootstrap_admin_key()
     if not get_all_trades(limit=1):
         force_scan()
     scheduler.add_job(scheduled_scan, "interval", minutes=5, id="forex_scan", replace_existing=True)
@@ -77,27 +87,75 @@ def health() -> dict[str, object]:
 
 
 @app.get("/analytics")
-def analytics() -> dict[str, object]:
+def analytics(session: dict[str, object] = Depends(require_session)) -> dict[str, object]:
     return calculate_analytics()
 
 
+@app.post("/auth/login")
+def auth_login(payload: dict[str, object] = Body(...)) -> dict[str, object]:
+    access_key = str(payload.get("access_key", ""))
+    user_name = str(payload.get("user_name", ""))
+    return login_with_key(access_key=access_key, user_name=user_name)
+
+
+@app.get("/auth/session")
+def auth_session(session: dict[str, object] = Depends(require_session)) -> dict[str, object]:
+    return current_session_payload(session)
+
+
+@app.post("/auth/logout")
+def auth_logout(session: dict[str, object] = Depends(require_session)) -> dict[str, object]:
+    logout_session(str(session["session_token"]))
+    return {"status": "logged_out"}
+
+
+@app.get("/admin/state")
+def admin_state(session: dict[str, object] = Depends(require_session)) -> dict[str, object]:
+    require_admin(session)
+    return admin_key_state()
+
+
+@app.post("/admin/access-keys")
+def admin_create_access_key(
+    payload: dict[str, object] = Body(...),
+    session: dict[str, object] = Depends(require_session),
+) -> dict[str, object]:
+    require_admin(session)
+    label = str(payload.get("label", "")).strip() or "User key"
+    return {"created": create_user_key(label=label), "state": admin_key_state()}
+
+
+@app.post("/admin/access-keys/revoke")
+def admin_revoke_access_key(
+    payload: dict[str, object] = Body(...),
+    session: dict[str, object] = Depends(require_session),
+) -> dict[str, object]:
+    require_admin(session)
+    key_id = str(payload.get("key_id", "")).strip()
+    return revoke_user_key(key_id)
+
+
 @app.get("/learning-status")
-def get_learning_status() -> dict[str, object]:
+def get_learning_status(session: dict[str, object] = Depends(require_session)) -> dict[str, object]:
     return learning_status()
 
 
 @app.get("/pair-performance")
-def get_pair_performance() -> dict[str, object]:
+def get_pair_performance(session: dict[str, object] = Depends(require_session)) -> dict[str, object]:
     return pair_performance()
 
 
 @app.get("/strategy-settings")
-def strategy_settings() -> dict[str, object]:
+def strategy_settings(session: dict[str, object] = Depends(require_session)) -> dict[str, object]:
     return get_strategy_settings()
 
 
 @app.post("/strategy-settings")
-def update_strategy_settings(payload: dict[str, object] = Body(...)) -> dict[str, object]:
+def update_strategy_settings(
+    payload: dict[str, object] = Body(...),
+    session: dict[str, object] = Depends(require_session),
+) -> dict[str, object]:
+    require_admin(session)
     enabled_pairs = payload.get("enabled_pairs", [])
     enabled_setups = payload.get("enabled_setups", ["BUY_PULLBACK", "SELL_PULLBACK"])
     min_confidence = float(payload.get("min_confidence", 0.60))
@@ -113,12 +171,13 @@ def update_strategy_settings(payload: dict[str, object] = Body(...)) -> dict[str
 
 
 @app.get("/optimizer")
-def optimizer() -> dict[str, object]:
+def optimizer(session: dict[str, object] = Depends(require_session)) -> dict[str, object]:
     return optimize_strategy()
 
 
 @app.post("/optimizer/apply")
-def apply_optimizer() -> dict[str, object]:
+def apply_optimizer(session: dict[str, object] = Depends(require_session)) -> dict[str, object]:
+    require_admin(session)
     optimization = optimize_strategy()
     return {
         "optimizer": optimization,
@@ -133,37 +192,42 @@ def apply_optimizer() -> dict[str, object]:
 
 
 @app.get("/signals")
-def signals() -> list[dict[str, object]]:
+def signals(session: dict[str, object] = Depends(require_session)) -> list[dict[str, object]]:
     return get_all_trades(limit=20)
 
 
 @app.get("/active-telegram-trade")
-def active_telegram_trade() -> dict[str, object] | None:
+def active_telegram_trade(session: dict[str, object] = Depends(require_session)) -> dict[str, object] | None:
     return get_active_entry_trade()
 
 
 @app.get("/latest-telegram-trade")
-def latest_telegram_trade() -> dict[str, object] | None:
+def latest_telegram_trade(session: dict[str, object] = Depends(require_session)) -> dict[str, object] | None:
     return get_latest_entry_trade()
 
 
 @app.get("/view-trades")
-def view_trades() -> list[dict[str, object]]:
+def view_trades(session: dict[str, object] = Depends(require_session)) -> list[dict[str, object]]:
     return get_all_trades(limit=200)
 
 
 @app.get("/demo-account")
-def demo_account() -> dict[str, object]:
-    return demo_account_snapshot()
+def demo_account(session: dict[str, object] = Depends(require_session)) -> dict[str, object]:
+    run_demo_trade_manager_for_account(str(session["key_id"]))
+    return demo_account_snapshot(str(session["key_id"]))
 
 
 @app.get("/demo-trades")
-def demo_trades() -> list[dict[str, object]]:
-    return demo_trade_history(limit=200)
+def demo_trades(session: dict[str, object] = Depends(require_session)) -> list[dict[str, object]]:
+    run_demo_trade_manager_for_account(str(session["key_id"]))
+    return demo_trade_history(str(session["key_id"]), limit=200)
 
 
 @app.post("/demo-trade")
-def create_demo_trade(payload: dict[str, object] = Body(...)) -> dict[str, object]:
+def create_demo_trade(
+    payload: dict[str, object] = Body(...),
+    session: dict[str, object] = Depends(require_session),
+) -> dict[str, object]:
     pair = str(payload.get("pair", "")).upper()
     signal = str(payload.get("signal", "WAIT")).upper()
     units = max(100.0, float(payload.get("units", 10000)))
@@ -177,6 +241,7 @@ def create_demo_trade(payload: dict[str, object] = Body(...)) -> dict[str, objec
     if min(entry, sl, tp) <= 0:
         return {"status": "rejected", "message": "Entry, SL, and TP must be positive."}
     trade = place_demo_trade(
+        account_id=str(session["key_id"]),
         pair=pair,
         signal=signal,
         units=units,
@@ -186,36 +251,38 @@ def create_demo_trade(payload: dict[str, object] = Body(...)) -> dict[str, objec
         rr=rr,
         source_signal_id=source_signal_id,
     )
-    return {"status": "created", "trade": trade, "account": demo_account_snapshot()}
+    return {"status": "created", "trade": trade, "account": demo_account_snapshot(str(session["key_id"]))}
 
 
 @app.post("/demo-reset")
-def demo_reset() -> dict[str, object]:
-    reset_demo_state()
-    return {"status": "reset", "account": demo_account_snapshot()}
+def demo_reset(session: dict[str, object] = Depends(require_session)) -> dict[str, object]:
+    reset_demo_state(str(session["key_id"]))
+    return {"status": "reset", "account": demo_account_snapshot(str(session["key_id"]))}
 
 
 @app.post("/force-scan")
-def scan_now() -> dict[str, object]:
+def scan_now(session: dict[str, object] = Depends(require_session)) -> dict[str, object]:
+    require_admin(session)
     signals = force_scan()
     return {"inserted": len(signals), "signals": signals}
 
 
 @app.post("/run-trade-manager")
-def manage_trades() -> dict[str, object]:
+def manage_trades(session: dict[str, object] = Depends(require_session)) -> dict[str, object]:
     return run_trade_manager()
 
 
 @app.post("/reset-state")
-def reset_state() -> dict[str, object]:
+def reset_state(session: dict[str, object] = Depends(require_session)) -> dict[str, object]:
+    require_admin(session)
     reset_runtime_state()
     return {
         "status": "reset",
         "message": "Trade history, feature logs, telegram notification history, and demo account state cleared.",
-        "demo_account": demo_account_snapshot(),
+        "demo_account": demo_account_snapshot(str(session["key_id"])),
     }
 
 
 @app.get("/backtest")
-def backtest() -> dict[str, object]:
+def backtest(session: dict[str, object] = Depends(require_session)) -> dict[str, object]:
     return run_backtest()
