@@ -17,6 +17,7 @@ import type {
 import { AUTH_STORAGE_KEY, STRATEGY_PAIRS } from "@/lib/constants";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
+let volatileAuthToken = "";
 
 const emptyAnalytics: Analytics = {
   total_trades: 0,
@@ -32,7 +33,7 @@ const emptyAnalytics: Analytics = {
 async function fetchJson<T>(path: string, fallback: T, init?: RequestInit): Promise<T> {
   try {
     const headers = new Headers(init?.headers);
-    const token = typeof window === "undefined" ? "" : window.localStorage.getItem(AUTH_STORAGE_KEY) ?? "";
+    const token = getAuthToken();
     if (token) {
       headers.set("Authorization", `Bearer ${token}`);
     }
@@ -44,6 +45,39 @@ async function fetchJson<T>(path: string, fallback: T, init?: RequestInit): Prom
   } catch {
     return fallback;
   }
+}
+
+function browserStorageToken(): string {
+  if (typeof window === "undefined") {
+    return "";
+  }
+  return volatileAuthToken || window.localStorage.getItem(AUTH_STORAGE_KEY) || "";
+}
+
+export function getAuthToken(): string {
+  return browserStorageToken();
+}
+
+export function setAuthToken(token: string, persist: boolean) {
+  volatileAuthToken = token;
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.localStorage.removeItem(AUTH_STORAGE_KEY);
+  if (!token) {
+    return;
+  }
+  if (persist) {
+    window.localStorage.setItem(AUTH_STORAGE_KEY, token);
+  }
+}
+
+export function clearAuthToken() {
+  volatileAuthToken = "";
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.localStorage.removeItem(AUTH_STORAGE_KEY);
 }
 
 export async function getDashboardState(): Promise<DashboardState> {
@@ -148,8 +182,8 @@ export async function login(access_key: string, user_name: string): Promise<Auth
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ access_key, user_name }),
   });
-  if (session?.session_token && typeof window !== "undefined") {
-    window.localStorage.setItem(AUTH_STORAGE_KEY, session.session_token);
+  if (session?.session_token) {
+    setAuthToken(session.session_token, session.role !== "ADMIN");
   }
   return session;
 }
@@ -160,9 +194,7 @@ export async function getCurrentSession(): Promise<AuthSession | null> {
 
 export async function logout(): Promise<void> {
   await fetchJson("/auth/logout", {}, { method: "POST" });
-  if (typeof window !== "undefined") {
-    window.localStorage.removeItem(AUTH_STORAGE_KEY);
-  }
+  clearAuthToken();
 }
 
 export async function getAdminState(): Promise<AdminState | null> {

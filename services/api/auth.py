@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from typing import Any
+from datetime import UTC, datetime, timedelta
 
 from fastapi import Header, HTTPException
 
@@ -13,6 +14,7 @@ from database import (
     get_auth_session,
     list_access_keys,
     list_auth_sessions,
+    revoke_sessions_for_key,
     revoke_access_key,
     revoke_auth_session,
     touch_auth_session,
@@ -32,6 +34,22 @@ def bootstrap_admin_key() -> str:
     return generated
 
 
+def session_expiry_for_role(role: str) -> str:
+    now = datetime.now(UTC)
+    if role == "ADMIN":
+        return (now + timedelta(minutes=20)).isoformat()
+    return (now + timedelta(days=7)).isoformat()
+
+
+def is_expired(timestamp: str | None) -> bool:
+    if not timestamp:
+        return True
+    try:
+        return datetime.fromisoformat(timestamp) <= datetime.now(UTC)
+    except ValueError:
+        return True
+
+
 def login_with_key(*, access_key: str, user_name: str) -> dict[str, Any]:
     cleaned_key = access_key.strip()
     cleaned_user = user_name.strip()
@@ -39,12 +57,19 @@ def login_with_key(*, access_key: str, user_name: str) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail="Key and user name are required.")
 
     if cleaned_key == admin_access_key():
-        session = create_auth_session(key_id="admin_env_key", role="ADMIN", user_name=cleaned_user)
+        revoke_sessions_for_key("admin_env_key")
+        session = create_auth_session(
+            key_id="admin_env_key",
+            role="ADMIN",
+            user_name=cleaned_user,
+            expires_at=session_expiry_for_role("ADMIN"),
+        )
         return {
             "session_token": session["session_token"],
             "role": "ADMIN",
             "user_name": cleaned_user,
             "label": "Admin",
+            "expires_at": session["expires_at"],
         }
 
     key_record = get_access_key(cleaned_key)
@@ -57,12 +82,21 @@ def login_with_key(*, access_key: str, user_name: str) -> dict[str, Any]:
     if assigned_user.lower() != cleaned_user.lower():
         raise HTTPException(status_code=403, detail="This key is already assigned to another user.")
 
-    session = create_auth_session(key_id=str(key_record["key_id"]), role=str(key_record["role"]), user_name=assigned_user)
+    key_id = str(key_record["key_id"])
+    role = str(key_record["role"])
+    revoke_sessions_for_key(key_id)
+    session = create_auth_session(
+        key_id=key_id,
+        role=role,
+        user_name=assigned_user,
+        expires_at=session_expiry_for_role(role),
+    )
     return {
         "session_token": session["session_token"],
-        "role": key_record["role"],
+        "role": role,
         "user_name": assigned_user,
         "label": key_record["label"],
+        "expires_at": session["expires_at"],
     }
 
 
@@ -75,6 +109,9 @@ def require_session(authorization: str | None = Header(default=None)) -> dict[st
         raise HTTPException(status_code=401, detail="Session not found.")
     if session.get("revoked_at"):
         raise HTTPException(status_code=401, detail="Session revoked.")
+    if is_expired(str(session.get("expires_at") or "")):
+        revoke_auth_session(token)
+        raise HTTPException(status_code=401, detail="Session expired.")
     if session.get("role") != "ADMIN" and session.get("key_status") != "ACTIVE":
         raise HTTPException(status_code=401, detail="Key revoked.")
     touch_auth_session(token)
@@ -96,6 +133,7 @@ def current_session_payload(session: dict[str, Any]) -> dict[str, Any]:
         "role": session.get("role"),
         "user_name": session.get("user_name"),
         "label": session.get("label") or ("Admin" if session.get("role") == "ADMIN" else "User"),
+        "expires_at": session.get("expires_at"),
     }
 
 

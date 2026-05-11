@@ -256,11 +256,37 @@ def init_db() -> None:
                 user_name TEXT NOT NULL,
                 created_at TEXT NOT NULL,
                 last_seen_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
                 revoked_at TEXT
             )
             """,
         )
         _execute(connection, "CREATE INDEX IF NOT EXISTS idx_auth_sessions_key_id ON auth_sessions(key_id)")
+        session_columns = {
+            row["column_name"] if isinstance(row, dict) and "column_name" in row else row["name"]
+            for row in (
+                _fetchall_dicts(
+                    _execute(
+                        connection,
+                        """
+                        SELECT column_name
+                        FROM information_schema.columns
+                        WHERE table_name = 'auth_sessions'
+                        """
+                        if is_postgres()
+                        else "PRAGMA table_info(auth_sessions)"
+                    )
+                )
+            )
+        }
+        if "expires_at" not in session_columns:
+            _execute(connection, "ALTER TABLE auth_sessions ADD COLUMN expires_at TEXT")
+            _execute(
+                connection,
+                "UPDATE auth_sessions SET expires_at = last_seen_at WHERE expires_at IS NULL"
+                if is_postgres()
+                else "UPDATE auth_sessions SET expires_at = last_seen_at WHERE expires_at IS NULL",
+            )
 
         _execute(
             connection,
@@ -796,7 +822,18 @@ def revoke_access_key(key_id: str) -> None:
         )
 
 
-def create_auth_session(*, key_id: str, role: str, user_name: str) -> dict[str, Any]:
+def revoke_sessions_for_key(key_id: str) -> None:
+    with get_connection() as connection:
+        _execute(
+            connection,
+            "UPDATE auth_sessions SET revoked_at = %s WHERE key_id = %s AND revoked_at IS NULL"
+            if is_postgres()
+            else "UPDATE auth_sessions SET revoked_at = ? WHERE key_id = ? AND revoked_at IS NULL",
+            (now_iso(), key_id),
+        )
+
+
+def create_auth_session(*, key_id: str, role: str, user_name: str, expires_at: str) -> dict[str, Any]:
     record = {
         "session_token": f"session_{secrets.token_urlsafe(32)}",
         "key_id": key_id,
@@ -804,9 +841,10 @@ def create_auth_session(*, key_id: str, role: str, user_name: str) -> dict[str, 
         "user_name": user_name,
         "created_at": now_iso(),
         "last_seen_at": now_iso(),
+        "expires_at": expires_at,
         "revoked_at": None,
     }
-    columns = ["session_token", "key_id", "role", "user_name", "created_at", "last_seen_at", "revoked_at"]
+    columns = ["session_token", "key_id", "role", "user_name", "created_at", "last_seen_at", "expires_at", "revoked_at"]
     placeholders = ", ".join(["%s" if is_postgres() else "?" for _ in columns])
     with get_connection() as connection:
         _execute(
@@ -822,7 +860,7 @@ def get_auth_session(session_token: str) -> dict[str, Any] | None:
         cursor = _execute(
             connection,
             """
-            SELECT session.session_token, session.key_id, session.role, session.user_name, session.created_at, session.last_seen_at, session.revoked_at,
+            SELECT session.session_token, session.key_id, session.role, session.user_name, session.created_at, session.last_seen_at, session.expires_at, session.revoked_at,
                    key.status AS key_status, key.label, key.assigned_user
             FROM auth_sessions session
             LEFT JOIN access_keys key ON key.key_id = session.key_id
@@ -830,7 +868,7 @@ def get_auth_session(session_token: str) -> dict[str, Any] | None:
             """
             if is_postgres()
             else """
-            SELECT session.session_token, session.key_id, session.role, session.user_name, session.created_at, session.last_seen_at, session.revoked_at,
+            SELECT session.session_token, session.key_id, session.role, session.user_name, session.created_at, session.last_seen_at, session.expires_at, session.revoked_at,
                    key.status AS key_status, key.label, key.assigned_user
             FROM auth_sessions session
             LEFT JOIN access_keys key ON key.key_id = session.key_id

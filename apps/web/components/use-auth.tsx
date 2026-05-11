@@ -3,8 +3,7 @@
 import { useRouter } from "next/navigation";
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
 
-import { getCurrentSession, login, logout } from "@/lib/api";
-import { AUTH_STORAGE_KEY } from "@/lib/constants";
+import { clearAuthToken, getAuthToken, getCurrentSession, login, logout } from "@/lib/api";
 import type { AuthSession } from "@/lib/types";
 
 interface AuthContextValue {
@@ -23,15 +22,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   async function refreshSession() {
-    const token = typeof window === "undefined" ? "" : window.localStorage.getItem(AUTH_STORAGE_KEY) ?? "";
+    const token = getAuthToken();
     if (!token) {
       setSession(null);
       setLoading(false);
       return null;
     }
     const nextSession = await getCurrentSession();
-    if (!nextSession && typeof window !== "undefined") {
-      window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    if (!nextSession) {
+      clearAuthToken();
     }
     setSession(nextSession);
     setLoading(false);
@@ -40,6 +39,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void refreshSession();
+    const interval = window.setInterval(() => {
+      void refreshSession();
+    }, 10000);
+    return () => window.clearInterval(interval);
   }, []);
 
   const value = useMemo<AuthContextValue>(

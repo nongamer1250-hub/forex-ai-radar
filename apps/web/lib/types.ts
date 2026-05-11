@@ -151,6 +151,7 @@ export interface AuthSession {
   role: "ADMIN" | "USER";
   user_name: string;
   label: string;
+  expires_at: string;
 }
 
 export interface AccessKeyRecord {
@@ -171,6 +172,7 @@ export interface AdminSessionRecord {
   user_name: string;
   created_at: string;
   last_seen_at: string;
+  expires_at?: string | null;
   revoked_at?: string | null;
 }
 
