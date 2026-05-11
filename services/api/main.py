@@ -36,8 +36,9 @@ from database import (
 from demo_trading import demo_account_snapshot, demo_trade_history, place_demo_trade, run_demo_trade_manager_for_account
 from learning import learning_status, optimize_strategy, pair_performance
 from scanner import force_scan
-from telegram_settings import add_recipient_for_session, recipients_for_session, remove_recipient_for_session
+from telegram_settings import add_recipient_for_session, recipients_for_session, remove_recipient_for_session, toggle_recipient_for_session
 from trade_manager import run_trade_manager
+from user_preferences import read_user_preferences, write_user_preferences
 
 scheduler = BackgroundScheduler()
 
@@ -151,6 +152,19 @@ def strategy_settings(session: dict[str, object] = Depends(require_session)) -> 
     return settings
 
 
+@app.get("/me/preferences")
+def me_preferences(session: dict[str, object] = Depends(require_session)) -> dict[str, object]:
+    return read_user_preferences(session)
+
+
+@app.post("/me/preferences")
+def update_me_preferences(
+    payload: dict[str, object] = Body(...),
+    session: dict[str, object] = Depends(require_session),
+) -> dict[str, object]:
+    return write_user_preferences(session, payload)
+
+
 @app.get("/telegram-recipients")
 def telegram_recipients(session: dict[str, object] = Depends(require_session)) -> list[dict[str, object]]:
     return recipients_for_session(session)
@@ -172,6 +186,16 @@ def remove_telegram_recipient_route(
 ) -> list[dict[str, object]]:
     recipient_id = str(payload.get("recipient_id", ""))
     return remove_recipient_for_session(session, recipient_id)
+
+
+@app.post("/telegram-recipients/toggle")
+def toggle_telegram_recipient_route(
+    payload: dict[str, object] = Body(...),
+    session: dict[str, object] = Depends(require_session),
+) -> list[dict[str, object]]:
+    recipient_id = str(payload.get("recipient_id", ""))
+    is_enabled = bool(payload.get("is_enabled", True))
+    return toggle_recipient_for_session(session, recipient_id, is_enabled)
 
 
 @app.post("/strategy-settings")

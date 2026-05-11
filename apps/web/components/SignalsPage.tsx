@@ -1,7 +1,7 @@
 "use client";
 
 import { Radio, RefreshCw, TrendingUp } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { TradingViewWidget } from "@/components/TradingViewWidget";
 import { ConfidenceMeter, MetricPill, SectionHeader, TerminalShell, formatSignalTime, panelClassName, signalTone, statusTone } from "@/components/terminal-ui";
@@ -10,9 +10,15 @@ import { useDashboardData } from "@/components/use-live-data";
 
 export function SignalsPage() {
   const { session } = useAuth();
-  const { data, forceScanNow, isPending } = useDashboardData();
+  const { data, forceScanNow, isPending, savePreferences } = useDashboardData();
   const [selectedPair, setSelectedPair] = useState("EURUSD");
-  const signals = data?.signals ?? [];
+  const preferences = data?.preferences;
+  const signals = (data?.signals ?? []).filter((signal) => (preferences?.watchlist.length ? preferences.watchlist.includes(signal.pair) : true));
+  useEffect(() => {
+    if (preferences?.selected_pair) {
+      setSelectedPair(preferences.selected_pair);
+    }
+  }, [preferences?.selected_pair]);
   const activePair = signals.some((item) => item.pair === selectedPair) ? selectedPair : signals[0]?.pair ?? "EURUSD";
   const activeSignal = signals.find((item) => item.pair === activePair);
 
@@ -20,6 +26,7 @@ export function SignalsPage() {
     <TerminalShell
       title="Signals"
       subtitle="Signal routing, live chart context, and Telegram anchor trades."
+      preferences={preferences}
       actions={
         <>
           <MetricPill label="Session" value={activeSignal?.session ?? "Offline"} />
@@ -73,7 +80,10 @@ export function SignalsPage() {
                 <button
                   className={`rounded-lg border px-3 py-2.5 text-left transition ${activePair === signal.pair ? "border-cyan-300/35 bg-cyan-300/10" : "border-white/8 bg-white/[0.03] hover:border-white/15"}`}
                   key={signal.signal_id}
-                  onClick={() => setSelectedPair(signal.pair)}
+                  onClick={() => {
+                    setSelectedPair(signal.pair);
+                    savePreferences({ selected_pair: signal.pair });
+                  }}
                   type="button"
                 >
                   <div className="mb-2 flex items-center justify-between gap-2">

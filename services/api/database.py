@@ -265,15 +265,50 @@ def init_db() -> None:
         _execute(
             connection,
             """
+            CREATE TABLE IF NOT EXISTS user_profiles (
+                owner_key_id TEXT PRIMARY KEY,
+                owner_role TEXT NOT NULL,
+                watchlist TEXT NOT NULL,
+                selected_pair TEXT NOT NULL,
+                density_mode TEXT NOT NULL,
+                notifications_enabled INTEGER NOT NULL DEFAULT 1,
+                updated_at TEXT NOT NULL
+            )
+            """,
+        )
+
+        _execute(
+            connection,
+            """
             CREATE TABLE IF NOT EXISTS telegram_recipients (
                 recipient_id TEXT PRIMARY KEY,
                 owner_key_id TEXT NOT NULL,
                 owner_role TEXT NOT NULL,
                 chat_id TEXT NOT NULL,
+                is_enabled INTEGER NOT NULL DEFAULT 1,
                 created_at TEXT NOT NULL
             )
             """,
         )
+        recipient_columns = {
+            row["column_name"] if isinstance(row, dict) and "column_name" in row else row["name"]
+            for row in (
+                _fetchall_dicts(
+                    _execute(
+                        connection,
+                        """
+                        SELECT column_name
+                        FROM information_schema.columns
+                        WHERE table_name = 'telegram_recipients'
+                        """
+                        if is_postgres()
+                        else "PRAGMA table_info(telegram_recipients)"
+                    )
+                )
+            )
+        }
+        if "is_enabled" not in recipient_columns:
+            _execute(connection, "ALTER TABLE telegram_recipients ADD COLUMN is_enabled INTEGER NOT NULL DEFAULT 1")
         _execute(connection, "CREATE INDEX IF NOT EXISTS idx_telegram_recipients_owner_key_id ON telegram_recipients(owner_key_id)")
         _execute(connection, "CREATE UNIQUE INDEX IF NOT EXISTS idx_telegram_recipients_chat_owner ON telegram_recipients(owner_key_id, chat_id)")
 
@@ -838,7 +873,101 @@ def list_auth_sessions(limit: int = 100) -> list[dict[str, Any]]:
         return _fetchall_dicts(cursor)
 
 
-def list_telegram_recipients(*, owner_key_id: str | None = None, owner_role: str | None = None) -> list[dict[str, Any]]:
+def get_user_profile(owner_key_id: str, owner_role: str = "USER") -> dict[str, Any]:
+    with get_connection() as connection:
+        cursor = _execute(
+            connection,
+            "SELECT * FROM user_profiles WHERE owner_key_id = %s" if is_postgres() else "SELECT * FROM user_profiles WHERE owner_key_id = ?",
+            (owner_key_id,),
+        )
+        profile = _fetchone_dict(cursor)
+        if not profile:
+            default = {
+                "owner_key_id": owner_key_id,
+                "owner_role": owner_role,
+                "watchlist": "EURUSD,GBPUSD,USDJPY,NZDUSD",
+                "selected_pair": "EURUSD",
+                "density_mode": "compact",
+                "notifications_enabled": 1,
+                "updated_at": now_iso(),
+            }
+            columns = ["owner_key_id", "owner_role", "watchlist", "selected_pair", "density_mode", "notifications_enabled", "updated_at"]
+            placeholders = ", ".join(["%s" if is_postgres() else "?" for _ in columns])
+            _execute(
+                connection,
+                f"INSERT INTO user_profiles ({', '.join(columns)}) VALUES ({placeholders})",
+                tuple(default[column] for column in columns),
+            )
+            profile = default
+    watchlist = [item for item in str(profile["watchlist"]).split(",") if item]
+    return {
+        "watchlist": watchlist,
+        "selected_pair": profile["selected_pair"],
+        "density_mode": profile["density_mode"],
+        "notifications_enabled": bool(profile["notifications_enabled"]),
+        "updated_at": profile["updated_at"],
+    }
+
+
+def save_user_profile(
+    *,
+    owner_key_id: str,
+    owner_role: str,
+    watchlist: list[str],
+    selected_pair: str,
+    density_mode: str,
+    notifications_enabled: bool,
+) -> dict[str, Any]:
+    normalized_watchlist = [item for item in watchlist if item]
+    payload = {
+        "owner_key_id": owner_key_id,
+        "owner_role": owner_role,
+        "watchlist": ",".join(normalized_watchlist),
+        "selected_pair": selected_pair,
+        "density_mode": density_mode,
+        "notifications_enabled": 1 if notifications_enabled else 0,
+        "updated_at": now_iso(),
+    }
+    with get_connection() as connection:
+        _execute(
+            connection,
+            """
+            INSERT INTO user_profiles (owner_key_id, owner_role, watchlist, selected_pair, density_mode, notifications_enabled, updated_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT(owner_key_id) DO UPDATE SET
+                owner_role = EXCLUDED.owner_role,
+                watchlist = EXCLUDED.watchlist,
+                selected_pair = EXCLUDED.selected_pair,
+                density_mode = EXCLUDED.density_mode,
+                notifications_enabled = EXCLUDED.notifications_enabled,
+                updated_at = EXCLUDED.updated_at
+            """
+            if is_postgres()
+            else """
+            INSERT INTO user_profiles (owner_key_id, owner_role, watchlist, selected_pair, density_mode, notifications_enabled, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(owner_key_id) DO UPDATE SET
+                owner_role = excluded.owner_role,
+                watchlist = excluded.watchlist,
+                selected_pair = excluded.selected_pair,
+                density_mode = excluded.density_mode,
+                notifications_enabled = excluded.notifications_enabled,
+                updated_at = excluded.updated_at
+            """,
+            (
+                payload["owner_key_id"],
+                payload["owner_role"],
+                payload["watchlist"],
+                payload["selected_pair"],
+                payload["density_mode"],
+                payload["notifications_enabled"],
+                payload["updated_at"],
+            ),
+        )
+    return get_user_profile(owner_key_id, owner_role)
+
+
+def list_telegram_recipients(*, owner_key_id: str | None = None, owner_role: str | None = None, enabled_only: bool = False) -> list[dict[str, Any]]:
     with get_connection() as connection:
         filters: list[str] = []
         params: list[Any] = []
@@ -849,6 +978,9 @@ def list_telegram_recipients(*, owner_key_id: str | None = None, owner_role: str
         if owner_role is not None:
             filters.append(f"owner_role = {placeholder}")
             params.append(owner_role)
+        if enabled_only:
+            filters.append(f"is_enabled = {placeholder}")
+            params.append(1)
         where_clause = f"WHERE {' AND '.join(filters)}" if filters else ""
         cursor = _execute(
             connection,
@@ -864,9 +996,10 @@ def add_telegram_recipient(*, owner_key_id: str, owner_role: str, chat_id: str) 
         "owner_key_id": owner_key_id,
         "owner_role": owner_role,
         "chat_id": chat_id.strip(),
+        "is_enabled": 1,
         "created_at": now_iso(),
     }
-    columns = ["recipient_id", "owner_key_id", "owner_role", "chat_id", "created_at"]
+    columns = ["recipient_id", "owner_key_id", "owner_role", "chat_id", "is_enabled", "created_at"]
     placeholders = ", ".join(["%s" if is_postgres() else "?" for _ in columns])
     with get_connection() as connection:
         _execute(
@@ -883,6 +1016,17 @@ def remove_telegram_recipient(recipient_id: str) -> None:
             connection,
             "DELETE FROM telegram_recipients WHERE recipient_id = %s" if is_postgres() else "DELETE FROM telegram_recipients WHERE recipient_id = ?",
             (recipient_id,),
+        )
+
+
+def set_telegram_recipient_enabled(recipient_id: str, is_enabled: bool) -> None:
+    with get_connection() as connection:
+        _execute(
+            connection,
+            "UPDATE telegram_recipients SET is_enabled = %s WHERE recipient_id = %s"
+            if is_postgres()
+            else "UPDATE telegram_recipients SET is_enabled = ? WHERE recipient_id = ?",
+            (1 if is_enabled else 0, recipient_id),
         )
 
 

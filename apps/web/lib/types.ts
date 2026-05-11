@@ -113,6 +113,7 @@ export interface DashboardState {
   pairPerformance: PairPerformanceState | null;
   strategySettings: StrategySettings | null;
   optimizer: OptimizerState | null;
+  preferences: UserPreferences | null;
 }
 
 export interface DemoTrade {
@@ -184,5 +185,14 @@ export interface TelegramRecipient {
   owner_key_id: string;
   owner_role: "ADMIN" | "USER";
   chat_id: string;
+  is_enabled: boolean;
   created_at: string;
+}
+
+export interface UserPreferences {
+  watchlist: string[];
+  selected_pair: string;
+  density_mode: "compact" | "comfortable";
+  notifications_enabled: boolean;
+  updated_at: string;
 }

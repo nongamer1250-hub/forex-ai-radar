@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import HTTPException
 
-from database import add_telegram_recipient, list_telegram_recipients, remove_telegram_recipient
+from database import add_telegram_recipient, list_telegram_recipients, remove_telegram_recipient, set_telegram_recipient_enabled
 
 
 def recipients_for_session(session: dict[str, object]) -> list[dict[str, object]]:
@@ -32,4 +32,12 @@ def remove_recipient_for_session(session: dict[str, object], recipient_id: str) 
     if not any(str(item["recipient_id"]) == recipient_id for item in visible):
         raise HTTPException(status_code=404, detail="Recipient not found.")
     remove_telegram_recipient(recipient_id)
+    return recipients_for_session(session)
+
+
+def toggle_recipient_for_session(session: dict[str, object], recipient_id: str, is_enabled: bool) -> list[dict[str, object]]:
+    visible = recipients_for_session(session)
+    if not any(str(item["recipient_id"]) == recipient_id for item in visible):
+        raise HTTPException(status_code=404, detail="Recipient not found.")
+    set_telegram_recipient_enabled(recipient_id, is_enabled)
     return recipients_for_session(session)

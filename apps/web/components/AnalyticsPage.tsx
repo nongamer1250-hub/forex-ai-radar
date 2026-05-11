@@ -11,7 +11,7 @@ export function AnalyticsPage() {
   const pairPerformance = data?.pairPerformance;
 
   return (
-    <TerminalShell title="Analytics" subtitle="Trade history, pair diagnostics, and live learning output.">
+    <TerminalShell title="Analytics" subtitle="Trade history, pair diagnostics, and live learning output." preferences={data?.preferences}>
       <div className="grid gap-3">
         <section className={`${panelClassName()} overflow-hidden rounded-lg`}>
           <div className="border-b border-white/6 px-3 py-2.5">

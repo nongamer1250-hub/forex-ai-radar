@@ -12,6 +12,7 @@ import type {
   StrategySettings,
   TelegramRecipient,
   TradeSignal,
+  UserPreferences,
 } from "@/lib/types";
 import { AUTH_STORAGE_KEY, STRATEGY_PAIRS } from "@/lib/constants";
 
@@ -46,7 +47,7 @@ async function fetchJson<T>(path: string, fallback: T, init?: RequestInit): Prom
 }
 
 export async function getDashboardState(): Promise<DashboardState> {
-  const [analytics, signals, trades, activeTelegramTrade, latestTelegramTrade, learningStatus, pairPerformance, strategySettings, optimizer] = await Promise.all([
+  const [analytics, signals, trades, activeTelegramTrade, latestTelegramTrade, learningStatus, pairPerformance, strategySettings, optimizer, preferences] = await Promise.all([
     fetchJson<Analytics>("/analytics", emptyAnalytics),
     fetchJson<TradeSignal[]>("/signals", []),
     fetchJson<TradeSignal[]>("/view-trades", []),
@@ -56,6 +57,7 @@ export async function getDashboardState(): Promise<DashboardState> {
     fetchJson<PairPerformanceState | null>("/pair-performance", null),
     fetchJson<StrategySettings | null>("/strategy-settings", null),
     fetchJson<OptimizerState | null>("/optimizer", null),
+    fetchJson<UserPreferences | null>("/me/preferences", null),
   ]);
 
   const telegramAnchor = activeTelegramTrade ?? latestTelegramTrade;
@@ -82,6 +84,7 @@ export async function getDashboardState(): Promise<DashboardState> {
     pairPerformance,
     strategySettings: normalizedStrategySettings,
     optimizer,
+    preferences,
   };
 }
 
@@ -199,5 +202,21 @@ export async function removeTelegramRecipient(recipient_id: string): Promise<Tel
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ recipient_id }),
+  });
+}
+
+export async function toggleTelegramRecipient(recipient_id: string, is_enabled: boolean): Promise<TelegramRecipient[]> {
+  return fetchJson<TelegramRecipient[]>("/telegram-recipients/toggle", [], {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ recipient_id, is_enabled }),
+  });
+}
+
+export async function saveUserPreferences(preferences: Partial<UserPreferences>): Promise<UserPreferences | null> {
+  return fetchJson<UserPreferences | null>("/me/preferences", null, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(preferences),
   });
 }

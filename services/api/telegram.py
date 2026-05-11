@@ -5,10 +5,21 @@ import os
 import httpx
 
 from database import has_notification, has_open_entry_notification, list_telegram_recipients, mark_notification_sent
+from user_preferences import read_user_preferences
 
 
 def telegram_chat_ids() -> list[str]:
-    configured_ids = [str(item["chat_id"]).strip() for item in list_telegram_recipients() if str(item.get("chat_id", "")).strip()]
+    configured_ids: list[str] = []
+    for item in list_telegram_recipients(enabled_only=True):
+        owner_role = str(item.get("owner_role", ""))
+        owner_key_id = str(item.get("owner_key_id", ""))
+        if owner_role != "ADMIN":
+            profile = read_user_preferences({"key_id": owner_key_id, "role": owner_role})
+            if not bool(profile.get("notifications_enabled", True)):
+                continue
+        chat_id = str(item.get("chat_id", "")).strip()
+        if chat_id:
+            configured_ids.append(chat_id)
     if configured_ids:
         return configured_ids
     raw = os.getenv("TELEGRAM_CHAT_IDS") or os.getenv("TELEGRAM_CHAT_ID", "")

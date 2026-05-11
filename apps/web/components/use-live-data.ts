@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState, useTransition } from "react";
 
-import { createDemoTrade, forceScan, getDashboardState, getDemoAccount, getDemoTrades, resetDemoAccount, resetState, runTradeManager, saveStrategySettings, applyOptimizer } from "@/lib/api";
-import type { DashboardState, DemoAccount, DemoTrade, StrategySettings } from "@/lib/types";
+import { applyOptimizer, createDemoTrade, forceScan, getDashboardState, getDemoAccount, getDemoTrades, resetDemoAccount, resetState, runTradeManager, saveStrategySettings, saveUserPreferences } from "@/lib/api";
+import type { DashboardState, DemoAccount, DemoTrade, StrategySettings, UserPreferences } from "@/lib/types";
 
 export function useDashboardData() {
   const [data, setData] = useState<DashboardState | null>(null);
@@ -45,6 +45,11 @@ export function useDashboardData() {
     hardReset() {
       startTransition(() => {
         void resetState().then(refresh);
+      });
+    },
+    savePreferences(preferences: Partial<UserPreferences>) {
+      startTransition(() => {
+        void saveUserPreferences(preferences).then(refresh);
       });
     },
   };

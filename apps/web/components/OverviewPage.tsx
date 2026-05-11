@@ -20,13 +20,17 @@ export function OverviewPage() {
   const { session } = useAuth();
   const { data, forceScanNow, isPending } = useDashboardData();
   const analytics = data?.analytics;
-  const topSignals = data?.signals.slice(0, 4) ?? [];
-  const chartPair = data?.signals[0]?.pair ?? "EURUSD";
+  const preferences = data?.preferences;
+  const watchlist = preferences?.watchlist ?? [];
+  const watchlistSignals = (data?.signals ?? []).filter((signal) => watchlist.length === 0 || watchlist.includes(signal.pair));
+  const topSignals = watchlistSignals.slice(0, 4);
+  const chartPair = preferences?.selected_pair ?? watchlistSignals[0]?.pair ?? data?.signals[0]?.pair ?? "EURUSD";
 
   return (
     <TerminalShell
       title="Overview"
       subtitle="Live forex terminal with high-signal routing, Telegram delivery, and adaptive filtering."
+      preferences={preferences}
       actions={
         <>
           <MetricPill label="Feed" value="Yahoo Finance" tone="border-emerald-300/20 bg-emerald-300/10 text-emerald-100" />
@@ -51,7 +55,7 @@ export function OverviewPage() {
         <StatCard label="Profit Factor" value={formatNumber(analytics?.profit_factor ?? 0)} />
       </section>
 
-      <div className="mt-3 grid gap-3 2xl:grid-cols-[minmax(0,1.25fr)_360px]">
+      <div className="grid gap-3 2xl:grid-cols-[minmax(0,1.3fr)_360px]">
         <div className={`${panelClassName()} overflow-hidden rounded-lg`}>
           <div className="flex items-center justify-between border-b border-white/6 px-3 py-2.5">
             <SectionHeader title="Market Focus" detail={chartPair} icon={TrendingUp} />
@@ -97,6 +101,23 @@ export function OverviewPage() {
               <div className="flex justify-between"><span className="text-slate-500">Closed trades used</span><strong>{data?.learningStatus?.closed_trades_used ?? 0}</strong></div>
               <div className="flex justify-between"><span className="text-slate-500">Net outcome score</span><strong>{data?.learningStatus?.net_outcome_score ?? 0}</strong></div>
               <div className="flex justify-between"><span className="text-slate-500">Strongest pair</span><strong>{data?.learningStatus?.strongest_pair ?? "N/A"}</strong></div>
+            </div>
+          </section>
+
+          <section className={`${panelClassName()} rounded-lg p-3`}>
+            <SectionHeader title="Personal Watchlist" detail={String(watchlist.length)} icon={Target} />
+            <div className="grid gap-2 sm:grid-cols-2">
+              {watchlist.map((pair) => {
+                const signal = (data?.signals ?? []).find((item) => item.pair === pair);
+                return (
+                  <div className="rounded-lg border border-white/8 bg-white/[0.03] px-3 py-2" key={pair}>
+                    <div className="flex items-center justify-between gap-2">
+                      <strong className="font-mono text-sm text-white">{pair}</strong>
+                      {signal ? <span className={`rounded-md border px-2 py-0.5 text-[11px] ${signalTone(signal.signal)}`}>{signal.signal}</span> : null}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </section>
         </div>

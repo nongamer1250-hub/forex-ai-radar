@@ -41,7 +41,7 @@ export function DemoPage() {
   }, [selectedSignal]);
 
   return (
-    <TerminalShell title="Demo Trading" subtitle="Paper trade live signals with demo capital and automatic TP/SL settlement.">
+    <TerminalShell title="Demo Trading" subtitle="Paper trade live signals with demo capital and automatic TP/SL settlement." preferences={data?.preferences}>
       <div className="grid gap-3 xl:grid-cols-[360px_minmax(0,1fr)]">
         <section className={`${panelClassName()} rounded-lg p-3`}>
           <SectionHeader title="Demo Wallet" icon={Wallet} />
@@ -67,7 +67,7 @@ export function DemoPage() {
                 {!liveSignals.length ? <option value="">No live BUY/SELL signals</option> : null}
                 {liveSignals.map((signal) => (
                   <option key={signal.signal_id} value={signal.signal_id}>
-                    {signal.pair} · {signal.signal} · {Math.round(signal.confidence * 100)}%
+                    {signal.pair} | {signal.signal} | {Math.round(signal.confidence * 100)}%
                   </option>
                 ))}
               </select>
