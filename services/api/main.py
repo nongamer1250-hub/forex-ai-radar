@@ -83,6 +83,7 @@ def health() -> dict[str, object]:
         "status": "ok",
         "market_data": "YAHOO_FINANCE_REALTIME_CHART",
         "database_engine": "postgresql" if is_postgres() else "sqlite",
+        "auth_policy": "single-session-v2",
     }
 
 
