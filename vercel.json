@@ -3,5 +3,5 @@
   "devCommand": "npm --workspace apps/web run dev",
   "installCommand": "npm install",
   "framework": "nextjs",
-  "outputDirectory": "apps/web/.next"
+  "outputDirectory": ".next"
 }
