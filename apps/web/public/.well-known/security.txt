@@ -1,0 +1,5 @@
+Contact: https://github.com/nongamer1250-hub/forex-ai-radar/issues/new
+Expires: 2027-05-11T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://forex-ai-radar-web.vercel.app/.well-known/security.txt
+Policy: https://github.com/nongamer1250-hub/forex-ai-radar
