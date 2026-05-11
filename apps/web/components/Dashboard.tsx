@@ -3,8 +3,8 @@
 import { Activity, BarChart3, Bot, Gauge, LineChart, Radio, RefreshCw, Settings, ShieldCheck, Target } from "lucide-react";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
-import { forceScan, getDashboardState, resetState, runTradeManager, saveStrategySettings } from "@/lib/api";
-import type { Analytics, LearningStatus, PairPerformanceState, StrategySettings, TradeSignal } from "@/lib/types";
+import { applyOptimizer, forceScan, getDashboardState, resetState, runTradeManager, saveStrategySettings } from "@/lib/api";
+import type { Analytics, LearningStatus, OptimizerState, PairPerformanceState, StrategySettings, TradeSignal } from "@/lib/types";
 import { TradingViewWidget } from "@/components/TradingViewWidget";
 
 const navItems = [
@@ -31,6 +31,7 @@ const defaultSettings: StrategySettings = {
   enabled_pairs: strategyPairs,
   enabled_setups: strategySetups,
   min_confidence: 0.6,
+  auto_block_enabled: true,
 };
 
 function formatNumber(value: number, suffix = "") {
@@ -74,6 +75,7 @@ export function Dashboard() {
   const [latestTelegramTrade, setLatestTelegramTrade] = useState<TradeSignal | null>(null);
   const [learningStatus, setLearningStatus] = useState<LearningStatus | null>(null);
   const [pairPerformance, setPairPerformance] = useState<PairPerformanceState | null>(null);
+  const [optimizer, setOptimizer] = useState<OptimizerState | null>(null);
   const [strategySettings, setStrategySettings] = useState<StrategySettings>(defaultSettings);
   const [selectedPair, setSelectedPair] = useState("EURUSD");
   const [lastUpdated, setLastUpdated] = useState<string>("Waiting for API");
@@ -93,6 +95,7 @@ export function Dashboard() {
     setLatestTelegramTrade(state.latestTelegramTrade);
     setLearningStatus(state.learningStatus);
     setPairPerformance(state.pairPerformance);
+    setOptimizer(state.optimizer);
     setStrategySettings(state.strategySettings ?? defaultSettings);
     if (!state.signals.some((signal) => signal.pair === selectedPair) && state.signals[0]) {
       setSelectedPair(state.signals[0].pair);
@@ -142,6 +145,12 @@ export function Dashboard() {
   function handleResetState() {
     startTransition(() => {
       void resetState().then(refresh);
+    });
+  }
+
+  function handleApplyOptimizer() {
+    startTransition(() => {
+      void applyOptimizer().then(refresh);
     });
   }
 
@@ -364,6 +373,27 @@ export function Dashboard() {
               </section>
 
               <section className="border border-white/10 bg-[#0b111d] p-3">
+                <h2 className="mb-3 text-sm font-semibold">Optimizer</h2>
+                {optimizer ? (
+                  <div className="grid gap-2 font-mono text-xs">
+                    <div className="flex justify-between"><span className="text-slate-500">Auto blocked</span><strong>{optimizer.auto_blocked_pairs.length ? optimizer.auto_blocked_pairs.join(", ") : "None"}</strong></div>
+                    <div className="flex justify-between"><span className="text-slate-500">Recommended on</span><strong>{optimizer.recommended_enabled_pairs.length}</strong></div>
+                    <div className="flex justify-between"><span className="text-slate-500">Recommended off</span><strong>{optimizer.recommended_disabled_pairs.length}</strong></div>
+                    <div className="mt-1 grid gap-1">
+                      {optimizer.recommendations.slice(0, 6).map((item) => (
+                        <div className="flex justify-between border border-white/10 bg-white/[0.03] px-2 py-2" key={item.pair}>
+                          <span>{item.pair}</span>
+                          <span className={item.action === "disable" ? "text-rose-300" : "text-emerald-300"}>{item.action} · {item.reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-400">Optimizer unavailable.</p>
+                )}
+              </section>
+
+              <section className="border border-white/10 bg-[#0b111d] p-3">
                 <div className="mb-3 flex items-center justify-between">
                   <h2 className="text-sm font-semibold">Strategy Controls</h2>
                   <span className="font-mono text-[11px] text-slate-400">Live</span>
@@ -420,6 +450,15 @@ export function Dashboard() {
                       value={strategySettings.min_confidence}
                     />
                   </div>
+                  <label className="flex items-center justify-between border border-white/10 bg-white/[0.03] px-2 py-2">
+                    <span className="text-slate-400">Auto pair blocking</span>
+                    <input
+                      checked={strategySettings.auto_block_enabled}
+                      className="accent-cyan-300"
+                      onChange={(event) => setStrategySettings({ ...strategySettings, auto_block_enabled: event.target.checked })}
+                      type="checkbox"
+                    />
+                  </label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       className="border border-cyan-300/30 bg-cyan-300/10 px-3 py-2 text-cyan-100 hover:bg-cyan-300/20"
@@ -438,6 +477,14 @@ export function Dashboard() {
                       Hard reset
                     </button>
                   </div>
+                  <button
+                    className="border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-amber-100 hover:bg-amber-300/20"
+                    disabled={isPending}
+                    onClick={handleApplyOptimizer}
+                    type="button"
+                  >
+                    Apply optimizer
+                  </button>
                 </div>
               </section>
 

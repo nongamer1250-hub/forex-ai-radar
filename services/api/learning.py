@@ -6,6 +6,8 @@ from typing import Any
 
 from database import get_closed_trades, get_feature_logs, get_strategy_settings
 
+FOREX_PAIRS = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD", "USDCHF", "NZDUSD", "EURJPY"]
+
 
 def outcome_value(trade: dict[str, Any]) -> int:
     return 1 if trade["trade_status"] == "WIN" else -1
@@ -165,4 +167,89 @@ def pair_performance() -> dict[str, Any]:
         "pairs": pairs,
         "setups": setups,
         "settings": settings,
+    }
+
+
+def get_auto_blocked_pairs() -> set[str]:
+    logs = get_feature_logs(limit=1000)
+    by_pair: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in logs:
+        by_pair[row["pair"]].append(row)
+
+    blocked: set[str] = set()
+    for pair, rows in by_pair.items():
+        finished = [row for row in rows if row["trade_status"] in {"WIN", "LOSS"}][:8]
+        if len(finished) < 4:
+            continue
+        wins = sum(1 for row in finished if row["trade_status"] == "WIN")
+        losses = sum(1 for row in finished if row["trade_status"] == "LOSS")
+        win_rate = wins / max(len(finished), 1)
+        if losses >= 3 and win_rate < 0.25:
+            blocked.add(pair)
+    return blocked
+
+
+def optimize_strategy() -> dict[str, Any]:
+    performance = pair_performance()
+    auto_blocked = get_auto_blocked_pairs()
+
+    recommendations: list[dict[str, Any]] = []
+    enabled_pairs: list[str] = []
+    disabled_pairs: list[str] = []
+
+    pair_index = {row["pair"]: row for row in performance["pairs"]}
+    for pair in FOREX_PAIRS:
+        row = pair_index.get(pair)
+        if row is None:
+            recommendations.append(
+                {
+                    "pair": pair,
+                    "action": "keep",
+                    "reason": "insufficient_live_data",
+                }
+            )
+            enabled_pairs.append(pair)
+            continue
+
+        if pair in auto_blocked:
+            recommendations.append(
+                {
+                    "pair": pair,
+                    "action": "disable",
+                    "reason": "rolling_live_losses",
+                    "finished_trades": row["finished_trades"],
+                    "win_rate": row["win_rate"],
+                }
+            )
+            disabled_pairs.append(pair)
+        elif row["finished_trades"] >= 4 and row["win_rate"] >= 40:
+            recommendations.append(
+                {
+                    "pair": pair,
+                    "action": "keep",
+                    "reason": "live_pair_strength",
+                    "finished_trades": row["finished_trades"],
+                    "win_rate": row["win_rate"],
+                }
+            )
+            enabled_pairs.append(pair)
+        else:
+            recommendations.append(
+                {
+                    "pair": pair,
+                    "action": "keep",
+                    "reason": "needs_more_samples",
+                    "finished_trades": row["finished_trades"],
+                    "win_rate": row["win_rate"],
+                }
+            )
+            enabled_pairs.append(pair)
+
+    settings = performance["settings"]
+    return {
+        "settings": settings,
+        "auto_blocked_pairs": sorted(auto_blocked),
+        "recommended_enabled_pairs": sorted(enabled_pairs),
+        "recommended_disabled_pairs": sorted(disabled_pairs),
+        "recommendations": recommendations,
     }

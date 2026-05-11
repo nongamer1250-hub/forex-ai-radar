@@ -21,7 +21,7 @@ from database import (
     reset_runtime_state,
     save_strategy_settings,
 )
-from learning import learning_status, pair_performance
+from learning import learning_status, optimize_strategy, pair_performance
 from scanner import force_scan
 from telegram import telegram_configured
 from trade_manager import run_trade_manager
@@ -97,11 +97,32 @@ def update_strategy_settings(payload: dict[str, object] = Body(...)) -> dict[str
     enabled_pairs = payload.get("enabled_pairs", [])
     enabled_setups = payload.get("enabled_setups", ["BUY_PULLBACK", "SELL_PULLBACK"])
     min_confidence = float(payload.get("min_confidence", 0.60))
+    auto_block_enabled = bool(payload.get("auto_block_enabled", True))
     return save_strategy_settings(
         enabled_pairs=[str(item) for item in enabled_pairs] if isinstance(enabled_pairs, list) else [],
         enabled_setups=[str(item) for item in enabled_setups] if isinstance(enabled_setups, list) else ["BUY_PULLBACK", "SELL_PULLBACK"],
         min_confidence=min(0.95, max(0.3, min_confidence)),
+        auto_block_enabled=auto_block_enabled,
     )
+
+
+@app.get("/optimizer")
+def optimizer() -> dict[str, object]:
+    return optimize_strategy()
+
+
+@app.post("/optimizer/apply")
+def apply_optimizer() -> dict[str, object]:
+    optimization = optimize_strategy()
+    return {
+        "optimizer": optimization,
+        "settings": save_strategy_settings(
+            enabled_pairs=optimization["recommended_enabled_pairs"],
+            enabled_setups=get_strategy_settings()["enabled_setups"],
+            min_confidence=float(get_strategy_settings()["min_confidence"]),
+            auto_block_enabled=bool(get_strategy_settings().get("auto_block_enabled", True)),
+        ),
+    }
 
 
 @app.get("/signals")

@@ -185,9 +185,18 @@ def init_db() -> None:
                 rr DOUBLE PRECISION NOT NULL,
                 session TEXT NOT NULL,
                 trend_bias TEXT NOT NULL,
+                higher_timeframe_bias TEXT NOT NULL DEFAULT '',
                 candle_strength DOUBLE PRECISION NOT NULL,
                 rsi DOUBLE PRECISION NOT NULL,
                 atr DOUBLE PRECISION NOT NULL,
+                atr_ratio DOUBLE PRECISION NOT NULL DEFAULT 0,
+                adx DOUBLE PRECISION NOT NULL DEFAULT 0,
+                macd_hist DOUBLE PRECISION NOT NULL DEFAULT 0,
+                trend_strength DOUBLE PRECISION NOT NULL DEFAULT 0,
+                fast_slope DOUBLE PRECISION NOT NULL DEFAULT 0,
+                ema_50_slope DOUBLE PRECISION NOT NULL DEFAULT 0,
+                market_ok INTEGER NOT NULL DEFAULT 0,
+                structural_ok INTEGER NOT NULL DEFAULT 0,
                 ema_fast DOUBLE PRECISION NOT NULL,
                 ema_slow DOUBLE PRECISION NOT NULL,
                 source TEXT NOT NULL,
@@ -197,12 +206,68 @@ def init_db() -> None:
             )
             """,
         )
+        feature_columns = {
+            row["column_name"] if isinstance(row, dict) and "column_name" in row else row["name"]
+            for row in (
+                _fetchall_dicts(
+                    _execute(
+                        connection,
+                        """
+                        SELECT column_name
+                        FROM information_schema.columns
+                        WHERE table_name = 'feature_logs'
+                        """
+                        if is_postgres()
+                        else "PRAGMA table_info(feature_logs)"
+                    )
+                )
+            )
+        }
+        feature_defaults = {
+            "higher_timeframe_bias": "TEXT NOT NULL DEFAULT ''",
+            "atr_ratio": "DOUBLE PRECISION NOT NULL DEFAULT 0",
+            "adx": "DOUBLE PRECISION NOT NULL DEFAULT 0",
+            "macd_hist": "DOUBLE PRECISION NOT NULL DEFAULT 0",
+            "trend_strength": "DOUBLE PRECISION NOT NULL DEFAULT 0",
+            "fast_slope": "DOUBLE PRECISION NOT NULL DEFAULT 0",
+            "ema_50_slope": "DOUBLE PRECISION NOT NULL DEFAULT 0",
+            "market_ok": "INTEGER NOT NULL DEFAULT 0",
+            "structural_ok": "INTEGER NOT NULL DEFAULT 0",
+        }
+        for column, definition in feature_defaults.items():
+            if column not in feature_columns:
+                _execute(connection, f"ALTER TABLE feature_logs ADD COLUMN {column} {definition}")
         _execute(connection, "CREATE INDEX IF NOT EXISTS idx_feature_logs_pair ON feature_logs(pair)")
         _execute(connection, "CREATE INDEX IF NOT EXISTS idx_feature_logs_status ON feature_logs(trade_status)")
 
 
 def insert_trade(trade: dict[str, Any]) -> None:
-    columns = list(trade.keys())
+    columns = [
+        "signal_id",
+        "pair",
+        "signal",
+        "setup_quality",
+        "setup_score",
+        "confidence",
+        "rr",
+        "entry",
+        "sl",
+        "tp",
+        "timestamp",
+        "trade_status",
+        "session",
+        "trend_bias",
+        "candle_strength",
+        "rsi",
+        "atr",
+        "ema_fast",
+        "ema_slow",
+        "setup_type",
+        "learning_bias",
+        "source",
+        "closed_at",
+        "close_price",
+    ]
     placeholders = ", ".join(["%s" if is_postgres() else "?" for _ in columns])
     updates = ", ".join([f"{column}=EXCLUDED.{column}" for column in columns if column != "signal_id"])
     query = f"""
@@ -211,7 +276,7 @@ def insert_trade(trade: dict[str, Any]) -> None:
         ON CONFLICT(signal_id) DO UPDATE SET {updates}
     """
     with get_connection() as connection:
-        _execute(connection, query, tuple(trade[column] for column in columns))
+        _execute(connection, query, tuple(trade.get(column) for column in columns))
         feature_columns = [
             "signal_id",
             "pair",
@@ -224,9 +289,18 @@ def insert_trade(trade: dict[str, Any]) -> None:
             "rr",
             "session",
             "trend_bias",
+            "higher_timeframe_bias",
             "candle_strength",
             "rsi",
             "atr",
+            "atr_ratio",
+            "adx",
+            "macd_hist",
+            "trend_strength",
+            "fast_slope",
+            "ema_50_slope",
+            "market_ok",
+            "structural_ok",
             "ema_fast",
             "ema_slow",
             "source",
@@ -235,6 +309,9 @@ def insert_trade(trade: dict[str, Any]) -> None:
             "close_price",
         ]
         feature_values = {column: trade.get(column) for column in feature_columns}
+        for key in ("market_ok", "structural_ok"):
+            if key in feature_values:
+                feature_values[key] = 1 if feature_values[key] else 0
         feature_placeholders = ", ".join(["%s" if is_postgres() else "?" for _ in feature_columns])
         feature_updates = ", ".join([f"{column}=EXCLUDED.{column}" for column in feature_columns if column != "signal_id"])
         feature_query = f"""
@@ -438,20 +515,23 @@ def get_strategy_settings() -> dict[str, Any]:
     enabled_pairs = settings.get("enabled_pairs", "ALL")
     enabled_setups = settings.get("enabled_setups", "BUY_PULLBACK,SELL_PULLBACK")
     min_confidence = float(settings.get("min_confidence", "0.60"))
+    auto_block_enabled = settings.get("auto_block_enabled", "true").lower() == "true"
     return {
         "enabled_pairs": [] if enabled_pairs == "ALL" else [item for item in enabled_pairs.split(",") if item],
         "enabled_setups": [item for item in enabled_setups.split(",") if item],
         "min_confidence": min_confidence,
+        "auto_block_enabled": auto_block_enabled,
     }
 
 
-def save_strategy_settings(*, enabled_pairs: list[str], enabled_setups: list[str], min_confidence: float) -> dict[str, Any]:
+def save_strategy_settings(*, enabled_pairs: list[str], enabled_setups: list[str], min_confidence: float, auto_block_enabled: bool) -> dict[str, Any]:
     normalized_pairs = sorted(set(enabled_pairs))
     normalized_setups = sorted(set(enabled_setups))
     payload = {
         "enabled_pairs": ",".join(normalized_pairs) if normalized_pairs else "ALL",
         "enabled_setups": ",".join(normalized_setups),
         "min_confidence": f"{min_confidence:.2f}",
+        "auto_block_enabled": "true" if auto_block_enabled else "false",
     }
     with get_connection() as connection:
         for key, value in payload.items():

@@ -5,7 +5,7 @@ from statistics import mean
 from typing import Any
 
 from database import get_strategy_settings, insert_trade, now_iso
-from learning import compute_learning_bias
+from learning import compute_learning_bias, get_auto_blocked_pairs
 from market_data import Candle, fetch_candles, get_market_state
 from telegram import send_signal_notification
 
@@ -294,9 +294,18 @@ def evaluate_signal(
         "trade_status": "OPEN" if signal in {"BUY", "SELL"} else "WAIT",
         "session": state["session"],
         "trend_bias": f"{trend_bias} / HTF {higher_timeframe_bias}",
+        "higher_timeframe_bias": higher_timeframe_bias,
         "candle_strength": strength,
         "rsi": current_rsi,
         "atr": current_atr,
+        "atr_ratio": round(atr_ratio, 6),
+        "adx": current_adx,
+        "macd_hist": round(macd_hist, 6),
+        "trend_strength": round(trend_strength, 4),
+        "fast_slope": fast_slope,
+        "ema_50_slope": ema_50_slope,
+        "market_ok": market_ok,
+        "structural_ok": structural_ok,
         "ema_fast": round(fast, 5),
         "ema_slow": round(slow, 5),
         "setup_type": setup_type,
@@ -335,8 +344,10 @@ def force_scan() -> list[dict[str, object]]:
     enabled_pairs = set(settings["enabled_pairs"])
     enabled_setups = set(settings["enabled_setups"])
     min_confidence = float(settings["min_confidence"])
+    auto_block_enabled = bool(settings.get("auto_block_enabled", True))
+    auto_blocked_pairs = get_auto_blocked_pairs() if auto_block_enabled else set()
 
-    pairs_to_scan = [pair for pair in FOREX_PAIRS if not enabled_pairs or pair in enabled_pairs]
+    pairs_to_scan = [pair for pair in FOREX_PAIRS if (not enabled_pairs or pair in enabled_pairs) and pair not in auto_blocked_pairs]
     signals = [scan_pair(pair) for pair in pairs_to_scan]
     for signal in signals:
         if signal["setup_type"] not in enabled_setups and signal["signal"] in {"BUY", "SELL"}:

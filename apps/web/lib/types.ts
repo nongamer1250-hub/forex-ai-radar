@@ -52,6 +52,7 @@ export interface StrategySettings {
   enabled_pairs: string[];
   enabled_setups: string[];
   min_confidence: number;
+  auto_block_enabled: boolean;
 }
 
 export interface PairPerformanceRow {
@@ -85,6 +86,22 @@ export interface PairPerformanceState {
   settings: StrategySettings;
 }
 
+export interface OptimizerRecommendation {
+  pair: string;
+  action: string;
+  reason: string;
+  finished_trades?: number;
+  win_rate?: number;
+}
+
+export interface OptimizerState {
+  settings: StrategySettings;
+  auto_blocked_pairs: string[];
+  recommended_enabled_pairs: string[];
+  recommended_disabled_pairs: string[];
+  recommendations: OptimizerRecommendation[];
+}
+
 export interface DashboardState {
   analytics: Analytics;
   signals: TradeSignal[];
@@ -94,4 +111,5 @@ export interface DashboardState {
   learningStatus: LearningStatus | null;
   pairPerformance: PairPerformanceState | null;
   strategySettings: StrategySettings | null;
+  optimizer: OptimizerState | null;
 }

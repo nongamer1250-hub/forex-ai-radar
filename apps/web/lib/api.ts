@@ -1,4 +1,4 @@
-import type { Analytics, DashboardState, LearningStatus, PairPerformanceState, StrategySettings, TradeSignal } from "@/lib/types";
+import type { Analytics, DashboardState, LearningStatus, OptimizerState, PairPerformanceState, StrategySettings, TradeSignal } from "@/lib/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 
@@ -26,7 +26,7 @@ async function fetchJson<T>(path: string, fallback: T, init?: RequestInit): Prom
 }
 
 export async function getDashboardState(): Promise<DashboardState> {
-  const [analytics, signals, trades, activeTelegramTrade, latestTelegramTrade, learningStatus, pairPerformance, strategySettings] = await Promise.all([
+  const [analytics, signals, trades, activeTelegramTrade, latestTelegramTrade, learningStatus, pairPerformance, strategySettings, optimizer] = await Promise.all([
     fetchJson<Analytics>("/analytics", emptyAnalytics),
     fetchJson<TradeSignal[]>("/signals", []),
     fetchJson<TradeSignal[]>("/view-trades", []),
@@ -35,6 +35,7 @@ export async function getDashboardState(): Promise<DashboardState> {
     fetchJson<LearningStatus | null>("/learning-status", null),
     fetchJson<PairPerformanceState | null>("/pair-performance", null),
     fetchJson<StrategySettings | null>("/strategy-settings", null),
+    fetchJson<OptimizerState | null>("/optimizer", null),
   ]);
 
   const telegramAnchor = activeTelegramTrade ?? latestTelegramTrade;
@@ -45,7 +46,7 @@ export async function getDashboardState(): Promise<DashboardState> {
       ]
     : signals;
 
-  return { analytics, signals: visibleSignals, trades, activeTelegramTrade, latestTelegramTrade, learningStatus, pairPerformance, strategySettings };
+  return { analytics, signals: visibleSignals, trades, activeTelegramTrade, latestTelegramTrade, learningStatus, pairPerformance, strategySettings, optimizer };
 }
 
 export async function forceScan(): Promise<TradeSignal[]> {
@@ -67,4 +68,8 @@ export async function saveStrategySettings(settings: StrategySettings): Promise<
 
 export async function resetState(): Promise<void> {
   await fetchJson("/reset-state", {}, { method: "POST" });
+}
+
+export async function applyOptimizer(): Promise<void> {
+  await fetchJson("/optimizer/apply", {}, { method: "POST" });
 }
