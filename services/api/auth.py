@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from typing import Any
 from datetime import UTC, datetime, timedelta
+from collections import defaultdict
 
 from fastapi import Header, HTTPException
 
@@ -20,6 +21,10 @@ from database import (
     touch_auth_session,
 )
 
+LOGIN_WINDOW_SECONDS = 300
+LOGIN_MAX_ATTEMPTS = 8
+_LOGIN_ATTEMPTS: dict[str, list[float]] = defaultdict(list)
+
 
 def admin_access_key() -> str:
     return os.getenv("ADMIN_ACCESS_KEY", "")
@@ -32,6 +37,12 @@ def bootstrap_admin_key() -> str:
     generated = "fxr_admin_terminal_9f2c71_gate"
     os.environ["ADMIN_ACCESS_KEY"] = generated
     return generated
+
+
+def mask_secret(value: str) -> str:
+    if len(value) <= 10:
+        return "*" * len(value)
+    return f"{value[:6]}...{value[-4:]}"
 
 
 def session_expiry_for_role(role: str) -> str:
@@ -50,7 +61,17 @@ def is_expired(timestamp: str | None) -> bool:
         return True
 
 
-def login_with_key(*, access_key: str, user_name: str) -> dict[str, Any]:
+def check_login_rate_limit(source_id: str) -> None:
+    now_ts = datetime.now(UTC).timestamp()
+    recent = [ts for ts in _LOGIN_ATTEMPTS[source_id] if now_ts - ts <= LOGIN_WINDOW_SECONDS]
+    if len(recent) >= LOGIN_MAX_ATTEMPTS:
+        raise HTTPException(status_code=429, detail="Too many login attempts. Try again later.")
+    recent.append(now_ts)
+    _LOGIN_ATTEMPTS[source_id] = recent
+
+
+def login_with_key(*, access_key: str, user_name: str, source_id: str) -> dict[str, Any]:
+    check_login_rate_limit(source_id or "unknown")
     cleaned_key = access_key.strip()
     cleaned_user = user_name.strip()
     if not cleaned_key or not cleaned_user:
@@ -142,9 +163,17 @@ def create_user_key(*, label: str) -> dict[str, Any]:
 
 
 def admin_key_state() -> dict[str, Any]:
+    keys = list_access_keys()
+    masked_keys = [
+        {
+            **record,
+            "access_key": mask_secret(str(record.get("access_key", ""))),
+        }
+        for record in keys
+    ]
     return {
         "admin_key_configured": bool(admin_access_key()),
-        "generated_keys": list_access_keys(),
+        "generated_keys": masked_keys,
         "active_sessions": list_auth_sessions(limit=200),
     }
 

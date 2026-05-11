@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import os
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
-from fastapi import Body, Depends, FastAPI
+from fastapi import Body, Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 load_dotenv()
 
@@ -43,6 +45,31 @@ from user_preferences import read_user_preferences, write_user_preferences
 scheduler = BackgroundScheduler()
 
 
+def allowed_origins() -> list[str]:
+    raw = os.getenv("APP_ORIGINS", "https://forex-ai-radar-web.vercel.app,http://127.0.0.1:3000,http://127.0.0.1:3001")
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://s3.tradingview.com; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: https:; "
+            "connect-src 'self' https://api-production-76b1.up.railway.app https://forex-ai-radar-web.vercel.app; "
+            "frame-src https://www.tradingview.com https://s.tradingview.com https://s3.tradingview.com; "
+            "object-src 'none'; base-uri 'self'; frame-ancestors 'none';"
+        )
+        return response
+
+
 def scheduled_scan() -> None:
     force_scan()
     run_trade_manager()
@@ -68,11 +95,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=allowed_origins(),
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -93,10 +121,12 @@ def analytics(session: dict[str, object] = Depends(require_session)) -> dict[str
 
 
 @app.post("/auth/login")
-def auth_login(payload: dict[str, object] = Body(...)) -> dict[str, object]:
+def auth_login(payload: dict[str, object] = Body(...), request: Request | None = None) -> dict[str, object]:
     access_key = str(payload.get("access_key", ""))
     user_name = str(payload.get("user_name", ""))
-    return login_with_key(access_key=access_key, user_name=user_name)
+    forwarded_for = request.headers.get("x-forwarded-for", "") if request else ""
+    source_id = forwarded_for.split(",")[0].strip() if forwarded_for else (request.client.host if request and request.client else "unknown")
+    return login_with_key(access_key=access_key, user_name=user_name, source_id=source_id)
 
 
 @app.get("/auth/session")
