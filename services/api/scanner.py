@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from statistics import mean
 from typing import Any
 
-from database import insert_trade, now_iso
+from database import get_strategy_settings, insert_trade, now_iso
 from learning import compute_learning_bias
 from market_data import Candle, fetch_candles, get_market_state
 from telegram import send_signal_notification
@@ -331,10 +331,28 @@ def scan_pair(pair: str) -> dict[str, object]:
 
 
 def force_scan() -> list[dict[str, object]]:
-    signals = [scan_pair(pair) for pair in FOREX_PAIRS]
+    settings = get_strategy_settings()
+    enabled_pairs = set(settings["enabled_pairs"])
+    enabled_setups = set(settings["enabled_setups"])
+    min_confidence = float(settings["min_confidence"])
+
+    pairs_to_scan = [pair for pair in FOREX_PAIRS if not enabled_pairs or pair in enabled_pairs]
+    signals = [scan_pair(pair) for pair in pairs_to_scan]
     for signal in signals:
+        if signal["setup_type"] not in enabled_setups and signal["signal"] in {"BUY", "SELL"}:
+            signal["signal"] = "WAIT"
+            signal["trade_status"] = "WAIT"
+            signal["setup_quality"] = "WAIT"
+            signal["setup_type"] = "NONE"
+            signal["confidence"] = min(float(signal["confidence"]), 0.2)
         insert_trade(signal)
-    actionable = [signal for signal in signals if signal["signal"] in {"BUY", "SELL"} and float(signal["confidence"]) >= 0.6]
+    actionable = [
+        signal
+        for signal in signals
+        if signal["signal"] in {"BUY", "SELL"}
+        and signal["setup_type"] in enabled_setups
+        and float(signal["confidence"]) >= min_confidence
+    ]
     if actionable:
         best_signal = max(actionable, key=lambda signal: (float(signal["confidence"]), float(signal["setup_score"]), float(signal["rr"])))
         send_signal_notification(best_signal)

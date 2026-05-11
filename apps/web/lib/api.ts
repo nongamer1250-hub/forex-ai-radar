@@ -1,4 +1,4 @@
-import type { Analytics, DashboardState, LearningStatus, TradeSignal } from "@/lib/types";
+import type { Analytics, DashboardState, LearningStatus, PairPerformanceState, StrategySettings, TradeSignal } from "@/lib/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 
@@ -26,13 +26,15 @@ async function fetchJson<T>(path: string, fallback: T, init?: RequestInit): Prom
 }
 
 export async function getDashboardState(): Promise<DashboardState> {
-  const [analytics, signals, trades, activeTelegramTrade, latestTelegramTrade, learningStatus] = await Promise.all([
+  const [analytics, signals, trades, activeTelegramTrade, latestTelegramTrade, learningStatus, pairPerformance, strategySettings] = await Promise.all([
     fetchJson<Analytics>("/analytics", emptyAnalytics),
     fetchJson<TradeSignal[]>("/signals", []),
     fetchJson<TradeSignal[]>("/view-trades", []),
     fetchJson<TradeSignal | null>("/active-telegram-trade", null),
     fetchJson<TradeSignal | null>("/latest-telegram-trade", null),
     fetchJson<LearningStatus | null>("/learning-status", null),
+    fetchJson<PairPerformanceState | null>("/pair-performance", null),
+    fetchJson<StrategySettings | null>("/strategy-settings", null),
   ]);
 
   const telegramAnchor = activeTelegramTrade ?? latestTelegramTrade;
@@ -43,7 +45,7 @@ export async function getDashboardState(): Promise<DashboardState> {
       ]
     : signals;
 
-  return { analytics, signals: visibleSignals, trades, activeTelegramTrade, latestTelegramTrade, learningStatus };
+  return { analytics, signals: visibleSignals, trades, activeTelegramTrade, latestTelegramTrade, learningStatus, pairPerformance, strategySettings };
 }
 
 export async function forceScan(): Promise<TradeSignal[]> {
@@ -53,4 +55,16 @@ export async function forceScan(): Promise<TradeSignal[]> {
 
 export async function runTradeManager(): Promise<void> {
   await fetchJson("/run-trade-manager", {}, { method: "POST" });
+}
+
+export async function saveStrategySettings(settings: StrategySettings): Promise<StrategySettings | null> {
+  return fetchJson<StrategySettings | null>("/strategy-settings", null, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
+}
+
+export async function resetState(): Promise<void> {
+  await fetchJson("/reset-state", {}, { method: "POST" });
 }

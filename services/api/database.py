@@ -159,6 +159,47 @@ def init_db() -> None:
             """,
         )
 
+        _execute(
+            connection,
+            """
+            CREATE TABLE IF NOT EXISTS strategy_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """,
+        )
+
+        _execute(
+            connection,
+            """
+            CREATE TABLE IF NOT EXISTS feature_logs (
+                signal_id TEXT PRIMARY KEY,
+                pair TEXT NOT NULL,
+                signal TEXT NOT NULL,
+                trade_status TEXT NOT NULL,
+                setup_type TEXT NOT NULL,
+                setup_score DOUBLE PRECISION NOT NULL,
+                confidence DOUBLE PRECISION NOT NULL,
+                learning_bias DOUBLE PRECISION NOT NULL,
+                rr DOUBLE PRECISION NOT NULL,
+                session TEXT NOT NULL,
+                trend_bias TEXT NOT NULL,
+                candle_strength DOUBLE PRECISION NOT NULL,
+                rsi DOUBLE PRECISION NOT NULL,
+                atr DOUBLE PRECISION NOT NULL,
+                ema_fast DOUBLE PRECISION NOT NULL,
+                ema_slow DOUBLE PRECISION NOT NULL,
+                source TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                closed_at TEXT,
+                close_price DOUBLE PRECISION
+            )
+            """,
+        )
+        _execute(connection, "CREATE INDEX IF NOT EXISTS idx_feature_logs_pair ON feature_logs(pair)")
+        _execute(connection, "CREATE INDEX IF NOT EXISTS idx_feature_logs_status ON feature_logs(trade_status)")
+
 
 def insert_trade(trade: dict[str, Any]) -> None:
     columns = list(trade.keys())
@@ -171,6 +212,37 @@ def insert_trade(trade: dict[str, Any]) -> None:
     """
     with get_connection() as connection:
         _execute(connection, query, tuple(trade[column] for column in columns))
+        feature_columns = [
+            "signal_id",
+            "pair",
+            "signal",
+            "trade_status",
+            "setup_type",
+            "setup_score",
+            "confidence",
+            "learning_bias",
+            "rr",
+            "session",
+            "trend_bias",
+            "candle_strength",
+            "rsi",
+            "atr",
+            "ema_fast",
+            "ema_slow",
+            "source",
+            "timestamp",
+            "closed_at",
+            "close_price",
+        ]
+        feature_values = {column: trade.get(column) for column in feature_columns}
+        feature_placeholders = ", ".join(["%s" if is_postgres() else "?" for _ in feature_columns])
+        feature_updates = ", ".join([f"{column}=EXCLUDED.{column}" for column in feature_columns if column != "signal_id"])
+        feature_query = f"""
+            INSERT INTO feature_logs ({", ".join(feature_columns)})
+            VALUES ({feature_placeholders})
+            ON CONFLICT(signal_id) DO UPDATE SET {feature_updates}
+        """
+        _execute(connection, feature_query, tuple(feature_values[column] for column in feature_columns))
 
 
 def get_all_trades(limit: int = 100) -> list[dict[str, Any]]:
@@ -223,6 +295,7 @@ def get_closed_trades(limit: int = 200) -> list[dict[str, Any]]:
 
 def update_trade_status(signal_id: str, status: str, close_price: float | None = None) -> None:
     with get_connection() as connection:
+        closed_at = now_iso()
         _execute(
             connection,
             """
@@ -236,7 +309,22 @@ def update_trade_status(signal_id: str, status: str, close_price: float | None =
             SET trade_status = ?, closed_at = ?, close_price = ?
             WHERE signal_id = ?
             """,
-            (status, now_iso(), close_price, signal_id),
+            (status, closed_at, close_price, signal_id),
+        )
+        _execute(
+            connection,
+            """
+            UPDATE feature_logs
+            SET trade_status = %s, closed_at = %s, close_price = %s
+            WHERE signal_id = %s
+            """
+            if is_postgres()
+            else """
+            UPDATE feature_logs
+            SET trade_status = ?, closed_at = ?, close_price = ?
+            WHERE signal_id = ?
+            """,
+            (status, closed_at, close_price, signal_id),
         )
 
 
@@ -328,3 +416,65 @@ def get_latest_entry_trade() -> dict[str, Any] | None:
             """,
         )
         return _fetchone_dict(cursor)
+
+
+def get_feature_logs(limit: int = 500) -> list[dict[str, Any]]:
+    with get_connection() as connection:
+        cursor = _execute(
+            connection,
+            "SELECT * FROM feature_logs ORDER BY timestamp DESC LIMIT %s"
+            if is_postgres()
+            else "SELECT * FROM feature_logs ORDER BY timestamp DESC LIMIT ?",
+            (limit,),
+        )
+        return _fetchall_dicts(cursor)
+
+
+def get_strategy_settings() -> dict[str, Any]:
+    with get_connection() as connection:
+        cursor = _execute(connection, "SELECT key, value FROM strategy_settings")
+        rows = _fetchall_dicts(cursor)
+    settings = {row["key"]: row["value"] for row in rows}
+    enabled_pairs = settings.get("enabled_pairs", "ALL")
+    enabled_setups = settings.get("enabled_setups", "BUY_PULLBACK,SELL_PULLBACK")
+    min_confidence = float(settings.get("min_confidence", "0.60"))
+    return {
+        "enabled_pairs": [] if enabled_pairs == "ALL" else [item for item in enabled_pairs.split(",") if item],
+        "enabled_setups": [item for item in enabled_setups.split(",") if item],
+        "min_confidence": min_confidence,
+    }
+
+
+def save_strategy_settings(*, enabled_pairs: list[str], enabled_setups: list[str], min_confidence: float) -> dict[str, Any]:
+    normalized_pairs = sorted(set(enabled_pairs))
+    normalized_setups = sorted(set(enabled_setups))
+    payload = {
+        "enabled_pairs": ",".join(normalized_pairs) if normalized_pairs else "ALL",
+        "enabled_setups": ",".join(normalized_setups),
+        "min_confidence": f"{min_confidence:.2f}",
+    }
+    with get_connection() as connection:
+        for key, value in payload.items():
+            _execute(
+                connection,
+                """
+                INSERT INTO strategy_settings (key, value, updated_at)
+                VALUES (%s, %s, %s)
+                ON CONFLICT(key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at
+                """
+                if is_postgres()
+                else """
+                INSERT INTO strategy_settings (key, value, updated_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+                """,
+                (key, value, now_iso()),
+            )
+    return get_strategy_settings()
+
+
+def reset_runtime_state() -> None:
+    with get_connection() as connection:
+        _execute(connection, "DELETE FROM telegram_notifications")
+        _execute(connection, "DELETE FROM feature_logs")
+        _execute(connection, "DELETE FROM trades")

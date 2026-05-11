@@ -48,6 +48,43 @@ export interface LearningStatus {
   strongest_setup: string;
 }
 
+export interface StrategySettings {
+  enabled_pairs: string[];
+  enabled_setups: string[];
+  min_confidence: number;
+}
+
+export interface PairPerformanceRow {
+  pair: string;
+  enabled: boolean;
+  total_logs: number;
+  finished_trades: number;
+  wins: number;
+  losses: number;
+  win_rate: number;
+  buy_signals: number;
+  sell_signals: number;
+  waits: number;
+  avg_learning_bias: number;
+  avg_confidence: number;
+}
+
+export interface SetupPerformanceRow {
+  setup_type: string;
+  enabled: boolean;
+  samples: number;
+  finished_trades: number;
+  wins: number;
+  losses: number;
+  win_rate: number;
+}
+
+export interface PairPerformanceState {
+  pairs: PairPerformanceRow[];
+  setups: SetupPerformanceRow[];
+  settings: StrategySettings;
+}
+
 export interface DashboardState {
   analytics: Analytics;
   signals: TradeSignal[];
@@ -55,4 +92,6 @@ export interface DashboardState {
   activeTelegramTrade: TradeSignal | null;
   latestTelegramTrade: TradeSignal | null;
   learningStatus: LearningStatus | null;
+  pairPerformance: PairPerformanceState | null;
+  strategySettings: StrategySettings | null;
 }

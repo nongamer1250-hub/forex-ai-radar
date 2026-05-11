@@ -4,15 +4,24 @@ from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import Body, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
 from analytics import calculate_analytics
 from backtest import run_backtest
-from database import get_active_entry_trade, get_all_trades, get_latest_entry_trade, init_db, is_postgres
-from learning import learning_status
+from database import (
+    get_active_entry_trade,
+    get_all_trades,
+    get_latest_entry_trade,
+    get_strategy_settings,
+    init_db,
+    is_postgres,
+    reset_runtime_state,
+    save_strategy_settings,
+)
+from learning import learning_status, pair_performance
 from scanner import force_scan
 from telegram import telegram_configured
 from trade_manager import run_trade_manager
@@ -73,6 +82,28 @@ def get_learning_status() -> dict[str, object]:
     return learning_status()
 
 
+@app.get("/pair-performance")
+def get_pair_performance() -> dict[str, object]:
+    return pair_performance()
+
+
+@app.get("/strategy-settings")
+def strategy_settings() -> dict[str, object]:
+    return get_strategy_settings()
+
+
+@app.post("/strategy-settings")
+def update_strategy_settings(payload: dict[str, object] = Body(...)) -> dict[str, object]:
+    enabled_pairs = payload.get("enabled_pairs", [])
+    enabled_setups = payload.get("enabled_setups", ["BUY_PULLBACK", "SELL_PULLBACK"])
+    min_confidence = float(payload.get("min_confidence", 0.60))
+    return save_strategy_settings(
+        enabled_pairs=[str(item) for item in enabled_pairs] if isinstance(enabled_pairs, list) else [],
+        enabled_setups=[str(item) for item in enabled_setups] if isinstance(enabled_setups, list) else ["BUY_PULLBACK", "SELL_PULLBACK"],
+        min_confidence=min(0.95, max(0.3, min_confidence)),
+    )
+
+
 @app.get("/signals")
 def signals() -> list[dict[str, object]]:
     return get_all_trades(limit=20)
@@ -102,6 +133,12 @@ def scan_now() -> dict[str, object]:
 @app.post("/run-trade-manager")
 def manage_trades() -> dict[str, object]:
     return run_trade_manager()
+
+
+@app.post("/reset-state")
+def reset_state() -> dict[str, object]:
+    reset_runtime_state()
+    return {"status": "reset", "message": "Trade history, feature logs, and telegram notification history cleared."}
 
 
 @app.get("/backtest")

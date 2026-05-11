@@ -4,7 +4,7 @@ from collections import defaultdict
 from statistics import mean
 from typing import Any
 
-from database import get_closed_trades
+from database import get_closed_trades, get_feature_logs, get_strategy_settings
 
 
 def outcome_value(trade: dict[str, Any]) -> int:
@@ -103,4 +103,66 @@ def learning_status() -> dict[str, Any]:
         "net_outcome_score": wins - losses,
         "strongest_pair": strongest_pair,
         "strongest_setup": strongest_setup,
+    }
+
+
+def pair_performance() -> dict[str, Any]:
+    logs = get_feature_logs(limit=1000)
+    settings = get_strategy_settings()
+    by_pair: dict[str, list[dict[str, Any]]] = defaultdict(list)
+
+    for row in logs:
+        by_pair[row["pair"]].append(row)
+
+    pairs: list[dict[str, Any]] = []
+    for pair, rows in sorted(by_pair.items()):
+        finished = [row for row in rows if row["trade_status"] in {"WIN", "LOSS"}]
+        wins = sum(1 for row in finished if row["trade_status"] == "WIN")
+        losses = sum(1 for row in finished if row["trade_status"] == "LOSS")
+        buy_rows = [row for row in rows if row["signal"] == "BUY"]
+        sell_rows = [row for row in rows if row["signal"] == "SELL"]
+        waits = [row for row in rows if row["signal"] == "WAIT"]
+        avg_bias = round(mean(float(row.get("learning_bias", 0)) for row in rows), 2) if rows else 0.0
+        avg_confidence = round(mean(float(row.get("confidence", 0)) for row in rows), 2) if rows else 0.0
+        pairs.append(
+            {
+                "pair": pair,
+                "enabled": not settings["enabled_pairs"] or pair in settings["enabled_pairs"],
+                "total_logs": len(rows),
+                "finished_trades": len(finished),
+                "wins": wins,
+                "losses": losses,
+                "win_rate": round(wins / len(finished) * 100, 2) if finished else 0.0,
+                "buy_signals": len(buy_rows),
+                "sell_signals": len(sell_rows),
+                "waits": len(waits),
+                "avg_learning_bias": avg_bias,
+                "avg_confidence": avg_confidence,
+            }
+        )
+
+    setup_rows: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in logs:
+        setup_rows[str(row.get("setup_type", "NONE"))].append(row)
+
+    setups: list[dict[str, Any]] = []
+    for setup_type, rows in sorted(setup_rows.items()):
+        finished = [row for row in rows if row["trade_status"] in {"WIN", "LOSS"}]
+        wins = sum(1 for row in finished if row["trade_status"] == "WIN")
+        setups.append(
+            {
+                "setup_type": setup_type,
+                "enabled": setup_type in settings["enabled_setups"],
+                "samples": len(rows),
+                "finished_trades": len(finished),
+                "wins": wins,
+                "losses": len(finished) - wins,
+                "win_rate": round(wins / len(finished) * 100, 2) if finished else 0.0,
+            }
+        )
+
+    return {
+        "pairs": pairs,
+        "setups": setups,
+        "settings": settings,
     }

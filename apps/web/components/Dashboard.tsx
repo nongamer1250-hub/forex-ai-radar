@@ -3,8 +3,8 @@
 import { Activity, BarChart3, Bot, Gauge, LineChart, Radio, RefreshCw, Settings, ShieldCheck, Target } from "lucide-react";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
-import { forceScan, getDashboardState, runTradeManager } from "@/lib/api";
-import type { Analytics, LearningStatus, TradeSignal } from "@/lib/types";
+import { forceScan, getDashboardState, resetState, runTradeManager, saveStrategySettings } from "@/lib/api";
+import type { Analytics, LearningStatus, PairPerformanceState, StrategySettings, TradeSignal } from "@/lib/types";
 import { TradingViewWidget } from "@/components/TradingViewWidget";
 
 const navItems = [
@@ -23,6 +23,14 @@ const initialAnalytics: Analytics = {
   avg_rr: 0,
   best_pair: "N/A",
   profit_factor: 0,
+};
+
+const strategyPairs = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD", "USDCHF", "NZDUSD", "EURJPY"];
+const strategySetups = ["BUY_PULLBACK", "SELL_PULLBACK"];
+const defaultSettings: StrategySettings = {
+  enabled_pairs: strategyPairs,
+  enabled_setups: strategySetups,
+  min_confidence: 0.6,
 };
 
 function formatNumber(value: number, suffix = "") {
@@ -65,6 +73,8 @@ export function Dashboard() {
   const [activeTelegramTrade, setActiveTelegramTrade] = useState<TradeSignal | null>(null);
   const [latestTelegramTrade, setLatestTelegramTrade] = useState<TradeSignal | null>(null);
   const [learningStatus, setLearningStatus] = useState<LearningStatus | null>(null);
+  const [pairPerformance, setPairPerformance] = useState<PairPerformanceState | null>(null);
+  const [strategySettings, setStrategySettings] = useState<StrategySettings>(defaultSettings);
   const [selectedPair, setSelectedPair] = useState("EURUSD");
   const [lastUpdated, setLastUpdated] = useState<string>("Waiting for API");
   const [isPending, startTransition] = useTransition();
@@ -82,6 +92,8 @@ export function Dashboard() {
     setActiveTelegramTrade(state.activeTelegramTrade);
     setLatestTelegramTrade(state.latestTelegramTrade);
     setLearningStatus(state.learningStatus);
+    setPairPerformance(state.pairPerformance);
+    setStrategySettings(state.strategySettings ?? defaultSettings);
     if (!state.signals.some((signal) => signal.pair === selectedPair) && state.signals[0]) {
       setSelectedPair(state.signals[0].pair);
     }
@@ -102,6 +114,34 @@ export function Dashboard() {
         setSignals(nextSignals);
         return refresh();
       });
+    });
+  }
+
+  function togglePair(pair: string) {
+    const enabled = strategySettings.enabled_pairs.includes(pair);
+    setStrategySettings({
+      ...strategySettings,
+      enabled_pairs: enabled ? strategySettings.enabled_pairs.filter((item) => item !== pair) : [...strategySettings.enabled_pairs, pair],
+    });
+  }
+
+  function toggleSetup(setup: string) {
+    const enabled = strategySettings.enabled_setups.includes(setup);
+    setStrategySettings({
+      ...strategySettings,
+      enabled_setups: enabled ? strategySettings.enabled_setups.filter((item) => item !== setup) : [...strategySettings.enabled_setups, setup],
+    });
+  }
+
+  function handleSaveSettings() {
+    startTransition(() => {
+      void saveStrategySettings(strategySettings).then(refresh);
+    });
+  }
+
+  function handleResetState() {
+    startTransition(() => {
+      void resetState().then(refresh);
     });
   }
 
@@ -141,7 +181,7 @@ export function Dashboard() {
           <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#080d16]/95 px-4 py-3">
             <div>
               <h1 className="font-mono text-lg font-semibold tracking-normal text-white">Forex AI Radar</h1>
-              <p className="text-xs text-slate-400">AI signal engine • SQLite lifecycle ledger • last update {lastUpdated}</p>
+              <p className="text-xs text-slate-400">AI signal engine · PostgreSQL lifecycle ledger · last update {lastUpdated}</p>
             </div>
             <div className="flex items-center gap-2">
               <span className="border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-xs text-emerald-100">
@@ -250,6 +290,38 @@ export function Dashboard() {
                   </table>
                 </div>
               </section>
+
+              <section className="overflow-hidden border border-white/10 bg-[#0b111d]">
+                <div className="flex items-center justify-between border-b border-white/10 px-3 py-2">
+                  <h2 className="text-sm font-semibold">Pair Performance</h2>
+                  <span className="text-xs text-slate-400">{pairPerformance?.pairs.length ?? 0} pairs</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[760px] text-left font-mono text-xs">
+                    <thead className="bg-white/[0.03] text-slate-400">
+                      <tr>
+                        {["Pair", "Enabled", "Finished", "Wins", "Losses", "Win Rate", "Avg Bias", "Avg Conf"].map((header) => (
+                          <th className="px-3 py-2 font-medium" key={header}>{header}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(pairPerformance?.pairs ?? []).map((row) => (
+                        <tr className="border-t border-white/10" key={row.pair}>
+                          <td className="px-3 py-2 text-white">{row.pair}</td>
+                          <td className={`px-3 py-2 ${row.enabled ? "text-emerald-300" : "text-slate-500"}`}>{row.enabled ? "ON" : "OFF"}</td>
+                          <td className="px-3 py-2">{row.finished_trades}</td>
+                          <td className="px-3 py-2 text-emerald-300">{row.wins}</td>
+                          <td className="px-3 py-2 text-rose-300">{row.losses}</td>
+                          <td className="px-3 py-2">{row.win_rate}%</td>
+                          <td className={`px-3 py-2 ${row.avg_learning_bias >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{row.avg_learning_bias}</td>
+                          <td className="px-3 py-2">{Math.round(row.avg_confidence * 100)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
             </div>
 
             <aside className="grid content-start gap-3">
@@ -289,6 +361,84 @@ export function Dashboard() {
                 ) : (
                   <p className="text-sm text-slate-400">Learning status unavailable.</p>
                 )}
+              </section>
+
+              <section className="border border-white/10 bg-[#0b111d] p-3">
+                <div className="mb-3 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold">Strategy Controls</h2>
+                  <span className="font-mono text-[11px] text-slate-400">Live</span>
+                </div>
+                <div className="grid gap-3 text-xs">
+                  <div>
+                    <div className="mb-2 text-slate-500">Enabled pairs</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {strategyPairs.map((pair) => {
+                        const enabled = strategySettings.enabled_pairs.includes(pair);
+                        return (
+                          <button
+                            className={`border px-2 py-2 text-left ${enabled ? "border-cyan-300/40 bg-cyan-300/10 text-cyan-100" : "border-white/10 bg-white/[0.03] text-slate-400"}`}
+                            key={pair}
+                            onClick={() => togglePair(pair)}
+                            type="button"
+                          >
+                            {pair}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="mb-2 text-slate-500">Enabled setups</div>
+                    <div className="grid gap-2">
+                      {strategySetups.map((setup) => {
+                        const enabled = strategySettings.enabled_setups.includes(setup);
+                        return (
+                          <button
+                            className={`border px-2 py-2 text-left ${enabled ? "border-emerald-300/40 bg-emerald-300/10 text-emerald-100" : "border-white/10 bg-white/[0.03] text-slate-400"}`}
+                            key={setup}
+                            onClick={() => toggleSetup(setup)}
+                            type="button"
+                          >
+                            {setup}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="mb-2 flex items-center justify-between text-slate-500">
+                      <span>Telegram min confidence</span>
+                      <strong className="text-white">{Math.round(strategySettings.min_confidence * 100)}%</strong>
+                    </div>
+                    <input
+                      className="w-full accent-cyan-300"
+                      max={0.9}
+                      min={0.4}
+                      onChange={(event) => setStrategySettings({ ...strategySettings, min_confidence: Number(event.target.value) })}
+                      step={0.01}
+                      type="range"
+                      value={strategySettings.min_confidence}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      className="border border-cyan-300/30 bg-cyan-300/10 px-3 py-2 text-cyan-100 hover:bg-cyan-300/20"
+                      disabled={isPending}
+                      onClick={handleSaveSettings}
+                      type="button"
+                    >
+                      Save controls
+                    </button>
+                    <button
+                      className="border border-rose-300/30 bg-rose-300/10 px-3 py-2 text-rose-100 hover:bg-rose-300/20"
+                      disabled={isPending}
+                      onClick={handleResetState}
+                      type="button"
+                    >
+                      Hard reset
+                    </button>
+                  </div>
+                </div>
               </section>
 
               <section className="border border-white/10 bg-[#0b111d] p-3">
