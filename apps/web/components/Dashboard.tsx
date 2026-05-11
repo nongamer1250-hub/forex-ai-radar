@@ -18,17 +18,17 @@ import {
   Target,
   TrendingUp,
 } from "lucide-react";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { applyOptimizer, forceScan, getDashboardState, resetState, runTradeManager, saveStrategySettings } from "@/lib/api";
 import { TradingViewWidget } from "@/components/TradingViewWidget";
 import type { Analytics, LearningStatus, OptimizerState, PairPerformanceState, StrategySettings, TradeSignal } from "@/lib/types";
 
 const navItems = [
-  { label: "Overview", icon: LayoutGrid },
-  { label: "Signals", icon: Radio },
-  { label: "Analytics", icon: Gauge },
-  { label: "Settings", icon: Settings },
+  { label: "Overview", icon: LayoutGrid, key: "overview" },
+  { label: "Signals", icon: Radio, key: "signals" },
+  { label: "Analytics", icon: Gauge, key: "analytics" },
+  { label: "Settings", icon: Settings, key: "settings" },
 ];
 
 const initialAnalytics: Analytics = {
@@ -161,7 +161,14 @@ export function Dashboard() {
   const [strategySettings, setStrategySettings] = useState<StrategySettings>(defaultSettings);
   const [selectedPair, setSelectedPair] = useState("EURUSD");
   const [lastUpdated, setLastUpdated] = useState("Waiting for API");
+  const [activeSection, setActiveSection] = useState("overview");
   const [isPending, startTransition] = useTransition();
+  const sectionRefs = useRef<Record<string, HTMLElement | null>>({
+    overview: null,
+    signals: null,
+    analytics: null,
+    settings: null,
+  });
 
   const activeSignal = useMemo(
     () => signals.find((signal) => signal.pair === selectedPair) ?? signals[0] ?? null,
@@ -191,6 +198,24 @@ export function Dashboard() {
       void runTradeManager().then(refresh);
     }, 10_000);
     return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
+        if (visible?.target instanceof HTMLElement) {
+          setActiveSection(visible.target.dataset.section ?? "overview");
+        }
+      },
+      { rootMargin: "-20% 0px -60% 0px", threshold: [0.2, 0.35, 0.5, 0.7] },
+    );
+
+    const refs = Object.values(sectionRefs.current).filter(Boolean) as HTMLElement[];
+    refs.forEach((element) => observer.observe(element));
+    return () => observer.disconnect();
   }, []);
 
   function handleForceScan() {
@@ -233,6 +258,11 @@ export function Dashboard() {
     });
   }
 
+  function scrollToSection(section: string) {
+    setActiveSection(section);
+    sectionRefs.current[section]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   const metricCards = [
     { label: "Total Trades", value: analytics.total_trades, icon: Activity, accent: "border-cyan-400/20 bg-cyan-400/10 text-cyan-200" },
     { label: "Win Rate", value: formatNumber(analytics.win_rate, "%"), icon: Target, accent: "border-emerald-400/20 bg-emerald-400/10 text-emerald-200" },
@@ -254,8 +284,13 @@ export function Dashboard() {
               {navItems.map((item) => (
                 <button
                   aria-label={item.label}
-                  className="grid size-11 place-items-center rounded-lg border border-transparent text-slate-500 transition hover:border-cyan-300/20 hover:bg-cyan-300/10 hover:text-cyan-100"
+                  className={`grid size-11 place-items-center rounded-lg border transition ${
+                    activeSection === item.key
+                      ? "border-cyan-300/30 bg-cyan-300/12 text-cyan-100"
+                      : "border-transparent text-slate-500 hover:border-cyan-300/20 hover:bg-cyan-300/10 hover:text-cyan-100"
+                  }`}
                   key={item.label}
+                  onClick={() => scrollToSection(item.key)}
                   type="button"
                 >
                   <item.icon size={18} />
@@ -297,17 +332,32 @@ export function Dashboard() {
 
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:hidden">
                 {navItems.map((item) => (
-                  <div className="flex items-center gap-2 rounded-lg border border-white/8 bg-white/[0.03] px-3 py-2 text-sm text-slate-300" key={item.label}>
+                  <button
+                    className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
+                      activeSection === item.key
+                        ? "border-cyan-300/30 bg-cyan-300/12 text-cyan-100"
+                        : "border-white/8 bg-white/[0.03] text-slate-300 hover:border-white/15"
+                    }`}
+                    key={item.label}
+                    onClick={() => scrollToSection(item.key)}
+                    type="button"
+                  >
                     <item.icon size={14} className="text-slate-500" />
                     <span>{item.label}</span>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
           </header>
 
           <div className="px-3 py-3 sm:px-4 xl:px-5">
-            <section className="grid grid-cols-2 gap-2 lg:grid-cols-3 2xl:grid-cols-6">
+            <section
+              className="grid scroll-mt-28 grid-cols-2 gap-2 lg:grid-cols-3 2xl:grid-cols-6"
+              data-section="overview"
+              ref={(element) => {
+                sectionRefs.current.overview = element;
+              }}
+            >
               {metricCards.map((metric) => (
                 <StatTile key={metric.label} {...metric} />
               ))}
@@ -315,7 +365,13 @@ export function Dashboard() {
 
             <div className="mt-3 grid gap-3 2xl:grid-cols-[minmax(0,1.2fr)_380px]">
               <div className="grid min-w-0 gap-3">
-                <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_250px]">
+                <section
+                  className="grid scroll-mt-28 gap-3 xl:grid-cols-[minmax(0,1fr)_250px]"
+                  data-section="signals"
+                  ref={(element) => {
+                    sectionRefs.current.signals = element;
+                  }}
+                >
                   <div className={`${panelClassName()} overflow-hidden rounded-lg`}>
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/6 px-3 py-2.5">
                       <div className="flex items-center gap-2">
@@ -373,7 +429,13 @@ export function Dashboard() {
                   </div>
                 </section>
 
-                <section className={`${panelClassName()} overflow-hidden rounded-lg`}>
+                <section
+                  className={`${panelClassName()} scroll-mt-28 overflow-hidden rounded-lg`}
+                  data-section="analytics"
+                  ref={(element) => {
+                    sectionRefs.current.analytics = element;
+                  }}
+                >
                   <div className="border-b border-white/6 px-3 py-2.5">
                     <SectionHeader title="Trade History" detail={`${trades.length} rows`} icon={Activity} />
                   </div>
@@ -440,7 +502,13 @@ export function Dashboard() {
               </div>
 
               <aside className="grid content-start gap-3">
-                <section className={`${panelClassName()} rounded-lg p-3`}>
+                <section
+                  className={`${panelClassName()} scroll-mt-28 rounded-lg p-3`}
+                  data-section="settings"
+                  ref={(element) => {
+                    sectionRefs.current.settings = element;
+                  }}
+                >
                   <SectionHeader title="AI Signal Stack" detail={activeSignal?.session ?? "Offline"} icon={Sparkles} />
                   <div className="grid gap-2">
                     {signals.slice(0, 6).map((signal) => (
