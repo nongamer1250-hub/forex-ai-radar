@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from demo_trading import run_demo_trade_manager
 from database import get_open_trades, update_trade_status
 from market_data import get_current_price
 from telegram import send_trade_result_notification
@@ -28,4 +29,10 @@ def run_trade_manager() -> dict[str, object]:
             send_trade_result_notification(trade, status, price)
             updates.append({"signal_id": trade["signal_id"], "pair": trade["pair"], "status": status, "close_price": price})
 
-    return {"checked": len(open_trades), "updated": len(updates), "updates": updates}
+    demo_result = run_demo_trade_manager()
+    return {
+        "checked": len(open_trades),
+        "updated": len(updates),
+        "updates": updates,
+        "demo": demo_result,
+    }

@@ -49,6 +49,7 @@ const defaultSettings: StrategySettings = {
   enabled_setups: strategySetups,
   min_confidence: 0.6,
   auto_block_enabled: true,
+  telegram_chat_ids: [],
 };
 
 function formatNumber(value: number, suffix = "") {

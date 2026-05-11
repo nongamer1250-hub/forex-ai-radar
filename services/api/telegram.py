@@ -4,20 +4,29 @@ import os
 
 import httpx
 
-from database import has_notification, has_open_entry_notification, mark_notification_sent
+from database import get_strategy_settings, has_notification, has_open_entry_notification, mark_notification_sent
+
+
+def telegram_chat_ids() -> list[str]:
+    settings = get_strategy_settings()
+    configured_ids = [str(item).strip() for item in settings.get("telegram_chat_ids", []) if str(item).strip()]
+    if configured_ids:
+        return configured_ids
+    raw = os.getenv("TELEGRAM_CHAT_IDS") or os.getenv("TELEGRAM_CHAT_ID", "")
+    return [item.strip() for item in raw.split(",") if item.strip()]
 
 
 def telegram_configured() -> bool:
-    return bool(os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID"))
+    return bool(os.getenv("TELEGRAM_BOT_TOKEN") and telegram_chat_ids())
 
 
 def _send_message(text: str) -> None:
     token = os.environ["TELEGRAM_BOT_TOKEN"]
-    chat_id = os.environ["TELEGRAM_CHAT_ID"]
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     with httpx.Client(timeout=10) as client:
-        response = client.post(url, json={"chat_id": chat_id, "text": text})
-        response.raise_for_status()
+        for chat_id in telegram_chat_ids():
+            response = client.post(url, json={"chat_id": chat_id, "text": text})
+            response.raise_for_status()
 
 
 def send_signal_notification(signal: dict[str, object]) -> bool:

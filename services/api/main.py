@@ -12,15 +12,19 @@ load_dotenv()
 from analytics import calculate_analytics
 from backtest import run_backtest
 from database import (
+    get_demo_account,
+    get_demo_trades,
     get_active_entry_trade,
     get_all_trades,
     get_latest_entry_trade,
     get_strategy_settings,
     init_db,
     is_postgres,
+    reset_demo_state,
     reset_runtime_state,
     save_strategy_settings,
 )
+from demo_trading import demo_account_snapshot, demo_trade_history, place_demo_trade
 from learning import learning_status, optimize_strategy, pair_performance
 from scanner import force_scan
 from telegram import telegram_configured
@@ -98,11 +102,13 @@ def update_strategy_settings(payload: dict[str, object] = Body(...)) -> dict[str
     enabled_setups = payload.get("enabled_setups", ["BUY_PULLBACK", "SELL_PULLBACK"])
     min_confidence = float(payload.get("min_confidence", 0.60))
     auto_block_enabled = bool(payload.get("auto_block_enabled", True))
+    telegram_chat_ids = payload.get("telegram_chat_ids", [])
     return save_strategy_settings(
         enabled_pairs=[str(item) for item in enabled_pairs] if isinstance(enabled_pairs, list) else [],
         enabled_setups=[str(item) for item in enabled_setups] if isinstance(enabled_setups, list) else ["BUY_PULLBACK", "SELL_PULLBACK"],
         min_confidence=min(0.95, max(0.3, min_confidence)),
         auto_block_enabled=auto_block_enabled,
+        telegram_chat_ids=[str(item) for item in telegram_chat_ids] if isinstance(telegram_chat_ids, list) else [],
     )
 
 
@@ -121,6 +127,7 @@ def apply_optimizer() -> dict[str, object]:
             enabled_setups=get_strategy_settings()["enabled_setups"],
             min_confidence=float(get_strategy_settings()["min_confidence"]),
             auto_block_enabled=bool(get_strategy_settings().get("auto_block_enabled", True)),
+            telegram_chat_ids=[str(item) for item in get_strategy_settings().get("telegram_chat_ids", [])],
         ),
     }
 
@@ -145,6 +152,49 @@ def view_trades() -> list[dict[str, object]]:
     return get_all_trades(limit=200)
 
 
+@app.get("/demo-account")
+def demo_account() -> dict[str, object]:
+    return demo_account_snapshot()
+
+
+@app.get("/demo-trades")
+def demo_trades() -> list[dict[str, object]]:
+    return demo_trade_history(limit=200)
+
+
+@app.post("/demo-trade")
+def create_demo_trade(payload: dict[str, object] = Body(...)) -> dict[str, object]:
+    pair = str(payload.get("pair", "")).upper()
+    signal = str(payload.get("signal", "WAIT")).upper()
+    units = max(100.0, float(payload.get("units", 10000)))
+    entry = float(payload.get("entry", 0))
+    sl = float(payload.get("sl", 0))
+    tp = float(payload.get("tp", 0))
+    rr = float(payload.get("rr", 1.5))
+    source_signal_id = str(payload["source_signal_id"]) if payload.get("source_signal_id") else None
+    if signal not in {"BUY", "SELL"}:
+        return {"status": "rejected", "message": "Demo trades require BUY or SELL signals."}
+    if min(entry, sl, tp) <= 0:
+        return {"status": "rejected", "message": "Entry, SL, and TP must be positive."}
+    trade = place_demo_trade(
+        pair=pair,
+        signal=signal,
+        units=units,
+        entry=entry,
+        sl=sl,
+        tp=tp,
+        rr=rr,
+        source_signal_id=source_signal_id,
+    )
+    return {"status": "created", "trade": trade, "account": demo_account_snapshot()}
+
+
+@app.post("/demo-reset")
+def demo_reset() -> dict[str, object]:
+    reset_demo_state()
+    return {"status": "reset", "account": demo_account_snapshot()}
+
+
 @app.post("/force-scan")
 def scan_now() -> dict[str, object]:
     signals = force_scan()
@@ -159,7 +209,11 @@ def manage_trades() -> dict[str, object]:
 @app.post("/reset-state")
 def reset_state() -> dict[str, object]:
     reset_runtime_state()
-    return {"status": "reset", "message": "Trade history, feature logs, and telegram notification history cleared."}
+    return {
+        "status": "reset",
+        "message": "Trade history, feature logs, telegram notification history, and demo account state cleared.",
+        "demo_account": demo_account_snapshot(),
+    }
 
 
 @app.get("/backtest")

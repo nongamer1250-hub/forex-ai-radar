@@ -173,6 +173,42 @@ def init_db() -> None:
         _execute(
             connection,
             """
+            CREATE TABLE IF NOT EXISTS demo_accounts (
+                account_id TEXT PRIMARY KEY,
+                start_balance DOUBLE PRECISION NOT NULL,
+                balance DOUBLE PRECISION NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """,
+        )
+
+        _execute(
+            connection,
+            """
+            CREATE TABLE IF NOT EXISTS demo_trades (
+                demo_trade_id TEXT PRIMARY KEY,
+                pair TEXT NOT NULL,
+                signal TEXT NOT NULL,
+                units DOUBLE PRECISION NOT NULL,
+                entry DOUBLE PRECISION NOT NULL,
+                sl DOUBLE PRECISION NOT NULL,
+                tp DOUBLE PRECISION NOT NULL,
+                rr DOUBLE PRECISION NOT NULL,
+                status TEXT NOT NULL,
+                opened_at TEXT NOT NULL,
+                closed_at TEXT,
+                close_price DOUBLE PRECISION,
+                realized_pnl DOUBLE PRECISION,
+                source_signal_id TEXT
+            )
+            """,
+        )
+        _execute(connection, "CREATE INDEX IF NOT EXISTS idx_demo_trades_status ON demo_trades(status)")
+        _execute(connection, "CREATE INDEX IF NOT EXISTS idx_demo_trades_opened_at ON demo_trades(opened_at)")
+
+        _execute(
+            connection,
+            """
             CREATE TABLE IF NOT EXISTS feature_logs (
                 signal_id TEXT PRIMARY KEY,
                 pair TEXT NOT NULL,
@@ -239,6 +275,20 @@ def init_db() -> None:
                 _execute(connection, f"ALTER TABLE feature_logs ADD COLUMN {column} {definition}")
         _execute(connection, "CREATE INDEX IF NOT EXISTS idx_feature_logs_pair ON feature_logs(pair)")
         _execute(connection, "CREATE INDEX IF NOT EXISTS idx_feature_logs_status ON feature_logs(trade_status)")
+        _execute(
+            connection,
+            """
+            INSERT INTO demo_accounts (account_id, start_balance, balance, updated_at)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT(account_id) DO NOTHING
+            """
+            if is_postgres()
+            else """
+            INSERT OR IGNORE INTO demo_accounts (account_id, start_balance, balance, updated_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            ("primary", 10000.0, 10000.0, now_iso()),
+        )
 
 
 def insert_trade(trade: dict[str, Any]) -> None:
@@ -516,22 +566,34 @@ def get_strategy_settings() -> dict[str, Any]:
     enabled_setups = settings.get("enabled_setups", "BUY_PULLBACK,SELL_PULLBACK")
     min_confidence = float(settings.get("min_confidence", "0.60"))
     auto_block_enabled = settings.get("auto_block_enabled", "true").lower() == "true"
+    telegram_chat_ids = settings.get("telegram_chat_ids", "").strip()
+    recipients = [item.strip() for item in telegram_chat_ids.split(",") if item.strip()]
     return {
         "enabled_pairs": [] if enabled_pairs == "ALL" else [item for item in enabled_pairs.split(",") if item],
         "enabled_setups": [item for item in enabled_setups.split(",") if item],
         "min_confidence": min_confidence,
         "auto_block_enabled": auto_block_enabled,
+        "telegram_chat_ids": recipients,
     }
 
 
-def save_strategy_settings(*, enabled_pairs: list[str], enabled_setups: list[str], min_confidence: float, auto_block_enabled: bool) -> dict[str, Any]:
+def save_strategy_settings(
+    *,
+    enabled_pairs: list[str],
+    enabled_setups: list[str],
+    min_confidence: float,
+    auto_block_enabled: bool,
+    telegram_chat_ids: list[str] | None = None,
+) -> dict[str, Any]:
     normalized_pairs = sorted(set(enabled_pairs))
     normalized_setups = sorted(set(enabled_setups))
+    normalized_chat_ids = sorted({item.strip() for item in (telegram_chat_ids or []) if item and item.strip()})
     payload = {
         "enabled_pairs": ",".join(normalized_pairs) if normalized_pairs else "ALL",
         "enabled_setups": ",".join(normalized_setups),
         "min_confidence": f"{min_confidence:.2f}",
         "auto_block_enabled": "true" if auto_block_enabled else "false",
+        "telegram_chat_ids": ",".join(normalized_chat_ids),
     }
     with get_connection() as connection:
         for key, value in payload.items():
@@ -553,8 +615,154 @@ def save_strategy_settings(*, enabled_pairs: list[str], enabled_setups: list[str
     return get_strategy_settings()
 
 
+def get_demo_account(account_id: str = "primary") -> dict[str, Any]:
+    with get_connection() as connection:
+        cursor = _execute(
+            connection,
+            "SELECT * FROM demo_accounts WHERE account_id = %s" if is_postgres() else "SELECT * FROM demo_accounts WHERE account_id = ?",
+            (account_id,),
+        )
+        account = _fetchone_dict(cursor)
+        if account:
+            return account
+        _execute(
+            connection,
+            """
+            INSERT INTO demo_accounts (account_id, start_balance, balance, updated_at)
+            VALUES (%s, %s, %s, %s)
+            """
+            if is_postgres()
+            else """
+            INSERT INTO demo_accounts (account_id, start_balance, balance, updated_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (account_id, 10000.0, 10000.0, now_iso()),
+        )
+        cursor = _execute(
+            connection,
+            "SELECT * FROM demo_accounts WHERE account_id = %s" if is_postgres() else "SELECT * FROM demo_accounts WHERE account_id = ?",
+            (account_id,),
+        )
+        return _fetchone_dict(cursor) or {
+            "account_id": account_id,
+            "start_balance": 10000.0,
+            "balance": 10000.0,
+            "updated_at": now_iso(),
+        }
+
+
+def get_demo_trades(limit: int = 200) -> list[dict[str, Any]]:
+    with get_connection() as connection:
+        cursor = _execute(
+            connection,
+            "SELECT * FROM demo_trades ORDER BY opened_at DESC LIMIT %s" if is_postgres() else "SELECT * FROM demo_trades ORDER BY opened_at DESC LIMIT ?",
+            (limit,),
+        )
+        return _fetchall_dicts(cursor)
+
+
+def get_open_demo_trades() -> list[dict[str, Any]]:
+    with get_connection() as connection:
+        cursor = _execute(
+            connection,
+            "SELECT * FROM demo_trades WHERE status = %s ORDER BY opened_at DESC" if is_postgres() else "SELECT * FROM demo_trades WHERE status = ? ORDER BY opened_at DESC",
+            ("OPEN",),
+        )
+        return _fetchall_dicts(cursor)
+
+
+def insert_demo_trade(trade: dict[str, Any]) -> None:
+    columns = [
+        "demo_trade_id",
+        "pair",
+        "signal",
+        "units",
+        "entry",
+        "sl",
+        "tp",
+        "rr",
+        "status",
+        "opened_at",
+        "closed_at",
+        "close_price",
+        "realized_pnl",
+        "source_signal_id",
+    ]
+    placeholders = ", ".join(["%s" if is_postgres() else "?" for _ in columns])
+    with get_connection() as connection:
+        _execute(
+            connection,
+            f"""
+            INSERT INTO demo_trades ({", ".join(columns)})
+            VALUES ({placeholders})
+            """,
+            tuple(trade.get(column) for column in columns),
+        )
+
+
+def update_demo_trade_status(demo_trade_id: str, status: str, close_price: float, realized_pnl: float) -> None:
+    with get_connection() as connection:
+        cursor = _execute(
+            connection,
+            "SELECT balance FROM demo_accounts WHERE account_id = %s" if is_postgres() else "SELECT balance FROM demo_accounts WHERE account_id = ?",
+            ("primary",),
+        )
+        account_row = _fetchone_dict(cursor) or {"balance": 10000.0}
+        _execute(
+            connection,
+            """
+            UPDATE demo_trades
+            SET status = %s, closed_at = %s, close_price = %s, realized_pnl = %s
+            WHERE demo_trade_id = %s
+            """
+            if is_postgres()
+            else """
+            UPDATE demo_trades
+            SET status = ?, closed_at = ?, close_price = ?, realized_pnl = ?
+            WHERE demo_trade_id = ?
+            """,
+            (status, now_iso(), close_price, realized_pnl, demo_trade_id),
+        )
+        _execute(
+            connection,
+            """
+            UPDATE demo_accounts
+            SET balance = %s, updated_at = %s
+            WHERE account_id = %s
+            """
+            if is_postgres()
+            else """
+            UPDATE demo_accounts
+            SET balance = ?, updated_at = ?
+            WHERE account_id = ?
+            """,
+            (float(account_row["balance"]) + realized_pnl, now_iso(), "primary"),
+        )
+
+
+def reset_demo_state() -> None:
+    with get_connection() as connection:
+        _execute(connection, "DELETE FROM demo_trades")
+        _execute(
+            connection,
+            """
+            UPDATE demo_accounts
+            SET start_balance = %s, balance = %s, updated_at = %s
+            WHERE account_id = %s
+            """
+            if is_postgres()
+            else """
+            UPDATE demo_accounts
+            SET start_balance = ?, balance = ?, updated_at = ?
+            WHERE account_id = ?
+            """,
+            (10000.0, 10000.0, now_iso(), "primary"),
+        )
+
+
 def reset_runtime_state() -> None:
     with get_connection() as connection:
         _execute(connection, "DELETE FROM telegram_notifications")
         _execute(connection, "DELETE FROM feature_logs")
         _execute(connection, "DELETE FROM trades")
+    reset_demo_state()

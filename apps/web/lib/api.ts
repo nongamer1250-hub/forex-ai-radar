@@ -1,4 +1,5 @@
-import type { Analytics, DashboardState, LearningStatus, OptimizerState, PairPerformanceState, StrategySettings, TradeSignal } from "@/lib/types";
+import type { Analytics, DashboardState, DemoAccount, DemoTrade, LearningStatus, OptimizerState, PairPerformanceState, StrategySettings, TradeSignal } from "@/lib/types";
+import { STRATEGY_PAIRS } from "@/lib/constants";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 
@@ -39,6 +40,12 @@ export async function getDashboardState(): Promise<DashboardState> {
   ]);
 
   const telegramAnchor = activeTelegramTrade ?? latestTelegramTrade;
+  const normalizedStrategySettings = strategySettings
+    ? {
+        ...strategySettings,
+        enabled_pairs: strategySettings.enabled_pairs.length ? strategySettings.enabled_pairs : [...STRATEGY_PAIRS],
+      }
+    : null;
   const visibleSignals = telegramAnchor
     ? [
         telegramAnchor,
@@ -46,7 +53,17 @@ export async function getDashboardState(): Promise<DashboardState> {
       ]
     : signals;
 
-  return { analytics, signals: visibleSignals, trades, activeTelegramTrade, latestTelegramTrade, learningStatus, pairPerformance, strategySettings, optimizer };
+  return {
+    analytics,
+    signals: visibleSignals,
+    trades,
+    activeTelegramTrade,
+    latestTelegramTrade,
+    learningStatus,
+    pairPerformance,
+    strategySettings: normalizedStrategySettings,
+    optimizer,
+  };
 }
 
 export async function forceScan(): Promise<TradeSignal[]> {
@@ -72,4 +89,33 @@ export async function resetState(): Promise<void> {
 
 export async function applyOptimizer(): Promise<void> {
   await fetchJson("/optimizer/apply", {}, { method: "POST" });
+}
+
+export async function getDemoAccount(): Promise<DemoAccount | null> {
+  return fetchJson<DemoAccount | null>("/demo-account", null);
+}
+
+export async function getDemoTrades(): Promise<DemoTrade[]> {
+  return fetchJson<DemoTrade[]>("/demo-trades", []);
+}
+
+export async function createDemoTrade(payload: {
+  pair: string;
+  signal: "BUY" | "SELL";
+  units: number;
+  entry: number;
+  sl: number;
+  tp: number;
+  rr: number;
+  source_signal_id?: string;
+}): Promise<void> {
+  await fetchJson("/demo-trade", {}, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function resetDemoAccount(): Promise<void> {
+  await fetchJson("/demo-reset", {}, { method: "POST" });
 }

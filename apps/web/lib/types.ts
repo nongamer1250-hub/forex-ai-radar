@@ -53,6 +53,7 @@ export interface StrategySettings {
   enabled_setups: string[];
   min_confidence: number;
   auto_block_enabled: boolean;
+  telegram_chat_ids: string[];
 }
 
 export interface PairPerformanceRow {
@@ -112,4 +113,34 @@ export interface DashboardState {
   pairPerformance: PairPerformanceState | null;
   strategySettings: StrategySettings | null;
   optimizer: OptimizerState | null;
+}
+
+export interface DemoTrade {
+  demo_trade_id: string;
+  pair: string;
+  signal: "BUY" | "SELL";
+  units: number;
+  entry: number;
+  sl: number;
+  tp: number;
+  rr: number;
+  status: "OPEN" | "WIN" | "LOSS";
+  opened_at: string;
+  closed_at?: string | null;
+  close_price?: number | null;
+  realized_pnl?: number | null;
+  source_signal_id?: string | null;
+  current_price?: number;
+  unrealized_pnl?: number;
+}
+
+export interface DemoAccount {
+  account_id: string;
+  start_balance: number;
+  balance: number;
+  equity: number;
+  open_positions: number;
+  unrealized_pnl: number;
+  updated_at: string;
+  positions: DemoTrade[];
 }
