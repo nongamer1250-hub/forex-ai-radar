@@ -21,6 +21,8 @@ export interface TradeSignal {
   atr: number;
   ema_fast: number;
   ema_slow: number;
+  setup_type?: string;
+  learning_bias?: number;
   source: string;
   closed_at?: string | null;
   close_price?: number | null;
@@ -37,10 +39,20 @@ export interface Analytics {
   profit_factor: number;
 }
 
+export interface LearningStatus {
+  closed_trades_used: number;
+  wins: number;
+  losses: number;
+  net_outcome_score: number;
+  strongest_pair: string;
+  strongest_setup: string;
+}
+
 export interface DashboardState {
   analytics: Analytics;
   signals: TradeSignal[];
   trades: TradeSignal[];
   activeTelegramTrade: TradeSignal | null;
   latestTelegramTrade: TradeSignal | null;
+  learningStatus: LearningStatus | null;
 }

@@ -1,4 +1,4 @@
-import type { Analytics, DashboardState, TradeSignal } from "@/lib/types";
+import type { Analytics, DashboardState, LearningStatus, TradeSignal } from "@/lib/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 
@@ -26,12 +26,13 @@ async function fetchJson<T>(path: string, fallback: T, init?: RequestInit): Prom
 }
 
 export async function getDashboardState(): Promise<DashboardState> {
-  const [analytics, signals, trades, activeTelegramTrade, latestTelegramTrade] = await Promise.all([
+  const [analytics, signals, trades, activeTelegramTrade, latestTelegramTrade, learningStatus] = await Promise.all([
     fetchJson<Analytics>("/analytics", emptyAnalytics),
     fetchJson<TradeSignal[]>("/signals", []),
     fetchJson<TradeSignal[]>("/view-trades", []),
     fetchJson<TradeSignal | null>("/active-telegram-trade", null),
     fetchJson<TradeSignal | null>("/latest-telegram-trade", null),
+    fetchJson<LearningStatus | null>("/learning-status", null),
   ]);
 
   const telegramAnchor = activeTelegramTrade ?? latestTelegramTrade;
@@ -42,7 +43,7 @@ export async function getDashboardState(): Promise<DashboardState> {
       ]
     : signals;
 
-  return { analytics, signals: visibleSignals, trades, activeTelegramTrade, latestTelegramTrade };
+  return { analytics, signals: visibleSignals, trades, activeTelegramTrade, latestTelegramTrade, learningStatus };
 }
 
 export async function forceScan(): Promise<TradeSignal[]> {

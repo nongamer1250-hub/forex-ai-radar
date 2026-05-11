@@ -4,7 +4,7 @@ import { Activity, BarChart3, Bot, Gauge, LineChart, Radio, RefreshCw, Settings,
 import { useEffect, useMemo, useState, useTransition } from "react";
 
 import { forceScan, getDashboardState, runTradeManager } from "@/lib/api";
-import type { Analytics, TradeSignal } from "@/lib/types";
+import type { Analytics, LearningStatus, TradeSignal } from "@/lib/types";
 import { TradingViewWidget } from "@/components/TradingViewWidget";
 
 const navItems = [
@@ -64,6 +64,7 @@ export function Dashboard() {
   const [trades, setTrades] = useState<TradeSignal[]>([]);
   const [activeTelegramTrade, setActiveTelegramTrade] = useState<TradeSignal | null>(null);
   const [latestTelegramTrade, setLatestTelegramTrade] = useState<TradeSignal | null>(null);
+  const [learningStatus, setLearningStatus] = useState<LearningStatus | null>(null);
   const [selectedPair, setSelectedPair] = useState("EURUSD");
   const [lastUpdated, setLastUpdated] = useState<string>("Waiting for API");
   const [isPending, startTransition] = useTransition();
@@ -80,6 +81,7 @@ export function Dashboard() {
     setTrades(state.trades);
     setActiveTelegramTrade(state.activeTelegramTrade);
     setLatestTelegramTrade(state.latestTelegramTrade);
+    setLearningStatus(state.learningStatus);
     if (!state.signals.some((signal) => signal.pair === selectedPair) && state.signals[0]) {
       setSelectedPair(state.signals[0].pair);
     }
@@ -275,6 +277,21 @@ export function Dashboard() {
               </section>
 
               <section className="border border-white/10 bg-[#0b111d] p-3">
+                <h2 className="mb-3 text-sm font-semibold">Adaptive Learning</h2>
+                {learningStatus ? (
+                  <div className="grid gap-2 font-mono text-xs">
+                    <div className="flex justify-between"><span className="text-slate-500">Closed trades used</span><strong>{learningStatus.closed_trades_used}</strong></div>
+                    <div className="flex justify-between"><span className="text-slate-500">Wins / Losses</span><strong>{learningStatus.wins} / {learningStatus.losses}</strong></div>
+                    <div className="flex justify-between"><span className="text-slate-500">Net outcome score</span><strong className={learningStatus.net_outcome_score >= 0 ? "text-emerald-300" : "text-rose-300"}>{learningStatus.net_outcome_score}</strong></div>
+                    <div className="flex justify-between"><span className="text-slate-500">Strongest pair</span><strong>{learningStatus.strongest_pair}</strong></div>
+                    <div className="flex justify-between"><span className="text-slate-500">Strongest setup</span><strong>{learningStatus.strongest_setup}</strong></div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-400">Learning status unavailable.</p>
+                )}
+              </section>
+
+              <section className="border border-white/10 bg-[#0b111d] p-3">
                 <h2 className="mb-3 text-sm font-semibold">Live Market State</h2>
                 {activeSignal ? (
                   <div className="grid gap-2 font-mono text-xs">
@@ -283,6 +300,8 @@ export function Dashboard() {
                     <div className="flex justify-between"><span className="text-slate-500">ATR</span><strong>{activeSignal.atr}</strong></div>
                     <div className="flex justify-between"><span className="text-slate-500">EMA 12</span><strong>{activeSignal.ema_fast}</strong></div>
                     <div className="flex justify-between"><span className="text-slate-500">EMA 26</span><strong>{activeSignal.ema_slow}</strong></div>
+                    <div className="flex justify-between"><span className="text-slate-500">Setup</span><strong>{activeSignal.setup_type ?? "NONE"}</strong></div>
+                    <div className="flex justify-between"><span className="text-slate-500">Learning bias</span><strong className={(activeSignal.learning_bias ?? 0) >= 0 ? "text-emerald-300" : "text-rose-300"}>{activeSignal.learning_bias ?? 0}</strong></div>
                     <div className="flex justify-between"><span className="text-slate-500">Source</span><strong className="text-amber-100">{activeSignal.source}</strong></div>
                     <ConfidenceMeter value={activeSignal.confidence} />
                   </div>

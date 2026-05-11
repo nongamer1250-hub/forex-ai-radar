@@ -10,7 +10,9 @@ from fastapi.middleware.cors import CORSMiddleware
 load_dotenv()
 
 from analytics import calculate_analytics
-from database import get_active_entry_trade, get_all_trades, get_latest_entry_trade, init_db
+from backtest import run_backtest
+from database import get_active_entry_trade, get_all_trades, get_latest_entry_trade, init_db, is_postgres
+from learning import learning_status
 from scanner import force_scan
 from telegram import telegram_configured
 from trade_manager import run_trade_manager
@@ -57,12 +59,18 @@ def health() -> dict[str, object]:
         "status": "ok",
         "market_data": "YAHOO_FINANCE_REALTIME_CHART",
         "telegram_configured": telegram_configured(),
+        "database_engine": "postgresql" if is_postgres() else "sqlite",
     }
 
 
 @app.get("/analytics")
 def analytics() -> dict[str, object]:
     return calculate_analytics()
+
+
+@app.get("/learning-status")
+def get_learning_status() -> dict[str, object]:
+    return learning_status()
 
 
 @app.get("/signals")
@@ -94,3 +102,8 @@ def scan_now() -> dict[str, object]:
 @app.post("/run-trade-manager")
 def manage_trades() -> dict[str, object]:
     return run_trade_manager()
+
+
+@app.get("/backtest")
+def backtest() -> dict[str, object]:
+    return run_backtest()

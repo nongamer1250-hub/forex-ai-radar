@@ -4,7 +4,7 @@ Premium AI-powered forex analytics and signal dashboard.
 
 ## Structure
 
-- `services/api`: FastAPI, APScheduler, SQLite signal engine and trade lifecycle manager
+- `services/api`: FastAPI, APScheduler, PostgreSQL-ready signal engine and trade lifecycle manager
 - `apps/web`: Next.js 16, TypeScript, TailwindCSS dashboard with TradingView widget
 
 ## Backend
@@ -26,6 +26,10 @@ Routes:
 - `POST /run-trade-manager`
 
 Market data is fetched from Yahoo Finance chart endpoints for real OHLC candles. The scanner does not synthesize fallback candles.
+
+Database behavior:
+- local fallback: SQLite
+- deployed target: PostgreSQL via `DATABASE_URL`
 
 Telegram signal notifications are optional:
 

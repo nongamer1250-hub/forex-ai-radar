@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from statistics import mean
+from typing import Any
 
 from database import insert_trade, now_iso
+from learning import compute_learning_bias
 from market_data import Candle, fetch_candles, get_market_state
 from telegram import send_signal_notification
 
@@ -16,6 +18,12 @@ def ema(values: list[float], period: int) -> float:
     for value in values[1:]:
         current = (value - current) * multiplier + current
     return current
+
+
+def ema_slope(values: list[float], period: int, lookback: int = 4) -> float:
+    recent = ema(values[-(period + lookback + 5) :], period)
+    prior = ema(values[-(period + lookback + 10) : -lookback], period)
+    return round(recent - prior, 6)
 
 
 def rsi(values: list[float], period: int = 14) -> float:
@@ -101,55 +109,119 @@ def trend_for(candles: list[Candle]) -> str:
     return "BULLISH" if ema_50 > ema_200 else "BEARISH"
 
 
-def scan_pair(pair: str) -> dict[str, object]:
-    candles = completed_candles(fetch_candles(pair, interval="5m", range_="5d"))
-    trend_candles = completed_candles(fetch_candles(pair, interval="15m", range_="10d"))
+def evaluate_signal(
+    *,
+    pair: str,
+    candles: list[Candle],
+    trend_candles: list[Candle],
+    timestamp: str | None = None,
+    source: str | None = None,
+    apply_learning: bool = True,
+) -> dict[str, Any]:
+    candles = completed_candles(candles)
+    trend_candles = completed_candles(trend_candles)
     closes = [candle.close for candle in candles]
     latest = candles[-1]
+    previous = candles[-2]
     fast = ema(closes[-80:], 12)
     slow = ema(closes[-120:], 26)
     ema_50 = ema(closes[-180:], 50)
     ema_200 = ema(closes, 200)
+    fast_slope = ema_slope(closes, 12)
+    slow_slope = ema_slope(closes, 26)
+    ema_50_slope = ema_slope(closes, 50)
     current_rsi = rsi(closes)
     current_atr = atr(candles)
     strength = candle_strength(latest)
     macd_line, macd_signal = macd(closes)
+    macd_hist = macd_line - macd_signal
     current_adx = adx(candles)
     trend_bias = "BULLISH" if fast > slow and ema_50 > ema_200 else "BEARISH"
     higher_timeframe_bias = trend_for(trend_candles)
     recent_high = max(candle.high for candle in candles[-21:-1])
     recent_low = min(candle.low for candle in candles[-21:-1])
     atr_ratio = current_atr / max(latest.close, 0.00001)
-    near_fast = abs(latest.close - fast) <= current_atr * 0.9
-    bullish_breakout = latest.close > recent_high and current_rsi <= 72
-    bearish_breakout = latest.close < recent_low and current_rsi >= 28
-    bullish_pullback = latest.close > ema_50 and near_fast and 42 <= current_rsi <= 58
-    bearish_pullback = latest.close < ema_50 and near_fast and 42 <= current_rsi <= 58
+    trend_strength = abs(ema_50 - ema_200) / max(current_atr, 0.00001)
+    near_fast = abs(latest.close - fast) <= current_atr * 0.65
+    touched_pullback_buy = latest.low <= fast + current_atr * 0.15
+    touched_pullback_sell = latest.high >= fast - current_atr * 0.15
+    breakout_buffer = current_atr * 0.12
+    bullish_breakout = (
+        latest.close > recent_high + breakout_buffer
+        and previous.close <= recent_high
+        and latest.close > fast > ema_50
+        and current_rsi <= 66
+        and strength >= 0.45
+        and macd_hist > 0
+    )
+    bearish_breakout = (
+        latest.close < recent_low - breakout_buffer
+        and previous.close >= recent_low
+        and latest.close < fast < ema_50
+        and current_rsi >= 34
+        and strength <= -0.45
+        and macd_hist < 0
+    )
+    bullish_pullback = (
+        latest.close > ema_50
+        and near_fast
+        and touched_pullback_buy
+        and latest.close >= fast
+        and 47 <= current_rsi <= 58
+        and strength >= 0.22
+        and macd_hist > 0
+    )
+    bearish_pullback = (
+        latest.close < ema_50
+        and near_fast
+        and touched_pullback_sell
+        and latest.close <= fast
+        and 42 <= current_rsi <= 53
+        and strength <= -0.22
+        and macd_hist < 0
+    )
 
     buy_score = 0
     sell_score = 0
-    buy_score += 22 if trend_bias == "BULLISH" else 0
-    sell_score += 22 if trend_bias == "BEARISH" else 0
-    buy_score += 18 if higher_timeframe_bias == "BULLISH" else 0
-    sell_score += 18 if higher_timeframe_bias == "BEARISH" else 0
-    buy_score += 12 if macd_line > macd_signal else 0
-    sell_score += 12 if macd_line < macd_signal else 0
-    buy_score += 10 if fast > slow and latest.close > ema_50 else 0
-    sell_score += 10 if fast < slow and latest.close < ema_50 else 0
-    buy_score += 12 if bullish_pullback else 14 if bullish_breakout else 0
-    sell_score += 12 if bearish_pullback else 14 if bearish_breakout else 0
-    buy_score += 10 if 45 <= current_rsi <= 62 else 4 if 38 <= current_rsi < 45 else 0
-    sell_score += 10 if 38 <= current_rsi <= 55 else 4 if 55 < current_rsi <= 62 else 0
-    buy_score += 8 if strength > 0.18 else 0
-    sell_score += 8 if strength < -0.18 else 0
-    buy_score += 8 if current_adx >= 16 else 0
-    sell_score += 8 if current_adx >= 16 else 0
+    buy_score += 24 if trend_bias == "BULLISH" else 0
+    sell_score += 24 if trend_bias == "BEARISH" else 0
+    buy_score += 20 if higher_timeframe_bias == "BULLISH" else 0
+    sell_score += 20 if higher_timeframe_bias == "BEARISH" else 0
+    buy_score += 12 if fast > slow and fast_slope > 0 and slow_slope >= 0 and ema_50_slope > 0 else 0
+    sell_score += 12 if fast < slow and fast_slope < 0 and slow_slope <= 0 and ema_50_slope < 0 else 0
+    buy_score += 10 if macd_hist > 0 else 0
+    sell_score += 10 if macd_hist < 0 else 0
+    buy_score += 12 if bullish_pullback else 16 if bullish_breakout else 0
+    sell_score += 12 if bearish_pullback else 16 if bearish_breakout else 0
+    buy_score += 8 if 48 <= current_rsi <= 60 else 0
+    sell_score += 8 if 40 <= current_rsi <= 52 else 0
+    buy_score += 6 if strength >= 0.3 else 0
+    sell_score += 6 if strength <= -0.3 else 0
+    buy_score += 8 if current_adx >= 18 else 0
+    sell_score += 8 if current_adx >= 18 else 0
 
-    market_ok = 0.00004 <= atr_ratio <= 0.0045
-    buy_valid = trend_bias == higher_timeframe_bias == "BULLISH" and current_rsi <= 72 and (bullish_pullback or bullish_breakout)
-    sell_valid = trend_bias == higher_timeframe_bias == "BEARISH" and current_rsi >= 28 and (bearish_pullback or bearish_breakout)
+    market_ok = 0.00006 <= atr_ratio <= 0.0035
+    structural_ok = trend_strength >= 1.2
+    buy_valid = (
+        trend_bias == higher_timeframe_bias == "BULLISH"
+        and current_rsi <= 66
+        and current_adx >= 18
+        and fast_slope > 0
+        and ema_50_slope > 0
+        and structural_ok
+        and bullish_pullback
+    )
+    sell_valid = (
+        trend_bias == higher_timeframe_bias == "BEARISH"
+        and current_rsi >= 34
+        and current_adx >= 18
+        and fast_slope < 0
+        and ema_50_slope < 0
+        and structural_ok
+        and bearish_pullback
+    )
 
-    if max(buy_score, sell_score) < 76 or not market_ok:
+    if max(buy_score, sell_score) < 80 or not market_ok or not structural_ok:
         signal = "WAIT"
         score = max(buy_score, sell_score)
     elif buy_score >= sell_score and buy_valid:
@@ -162,21 +234,49 @@ def scan_pair(pair: str) -> dict[str, object]:
         signal = "WAIT"
         score = max(buy_score, sell_score)
 
+    setup_type = resolve_setup_type(
+        bullish_pullback=bullish_pullback,
+        bullish_breakout=bullish_breakout,
+        bearish_pullback=bearish_pullback,
+        bearish_breakout=bearish_breakout,
+        signal=signal,
+    )
+
+    learning_bias = 0.0
+    if apply_learning and signal in {"BUY", "SELL"} and setup_type != "NONE":
+        feedback = compute_learning_bias(
+            pair=pair,
+            signal=signal,
+            setup_type=setup_type,
+            trend_bias=trend_bias,
+            current_rsi=current_rsi,
+        )
+        learning_bias = feedback["total_bias"]
+        score = round(score + learning_bias, 2)
+
+        if feedback["block_trade"] or (signal == "BUY" and (score < 82 or learning_bias <= -4)):
+            signal = "WAIT"
+            setup_type = "NONE"
+        elif signal == "SELL" and (score < 82 or learning_bias <= -4):
+            signal = "WAIT"
+            setup_type = "NONE"
+
     entry = latest.close
-    rr = 2.2 if score >= 86 else 1.8
+    rr = 1.9 if score >= 92 else 1.6
     if signal == "BUY":
-        sl = min(entry - current_atr * 1.25, recent_low - current_atr * 0.15)
+        sl = min(entry - current_atr * 1.1, recent_low - current_atr * 0.08)
         tp = entry + (entry - sl) * rr
     elif signal == "SELL":
-        sl = max(entry + current_atr * 1.25, recent_high + current_atr * 0.15)
+        sl = max(entry + current_atr * 1.1, recent_high + current_atr * 0.08)
         tp = entry - (sl - entry) * rr
     else:
         sl = entry - current_atr
         tp = entry + current_atr
 
-    quality = "A+" if score >= 90 else "A" if score >= 82 else "B" if score >= 76 and signal != "WAIT" else "WAIT"
+    quality = "A+" if score >= 92 else "A" if score >= 86 else "B" if score >= 82 and signal != "WAIT" else "WAIT"
     state = get_market_state()
-    timestamp = now_iso()
+    effective_timestamp = timestamp or now_iso()
+    effective_source = source or state["source"]
     signal_id = f"{pair}-{int(datetime.now(UTC).timestamp() // 300)}"
 
     return {
@@ -185,12 +285,12 @@ def scan_pair(pair: str) -> dict[str, object]:
         "signal": signal,
         "setup_quality": quality,
         "setup_score": round(score, 2),
-        "confidence": round(min(0.28 + (score / 100 * 0.68), 0.96), 2),
+        "confidence": round(min(max(0.18, 0.18 + max(score - 78, 0) * 0.02 + max(learning_bias, 0) * 0.008), 0.91), 2),
         "rr": rr,
         "entry": round(entry, 3 if pair.endswith("JPY") else 5),
         "sl": round(sl, 3 if pair.endswith("JPY") else 5),
         "tp": round(tp, 3 if pair.endswith("JPY") else 5),
-        "timestamp": timestamp,
+        "timestamp": effective_timestamp,
         "trade_status": "OPEN" if signal in {"BUY", "SELL"} else "WAIT",
         "session": state["session"],
         "trend_bias": f"{trend_bias} / HTF {higher_timeframe_bias}",
@@ -199,15 +299,42 @@ def scan_pair(pair: str) -> dict[str, object]:
         "atr": current_atr,
         "ema_fast": round(fast, 5),
         "ema_slow": round(slow, 5),
-        "source": state["source"],
+        "setup_type": setup_type,
+        "learning_bias": learning_bias,
+        "source": effective_source,
     }
+
+
+def resolve_setup_type(
+    *,
+    bullish_pullback: bool,
+    bullish_breakout: bool,
+    bearish_pullback: bool,
+    bearish_breakout: bool,
+    signal: str,
+) -> str:
+    if signal == "BUY" and bullish_pullback:
+        return "BUY_PULLBACK"
+    if signal == "BUY" and bullish_breakout:
+        return "BUY_BREAKOUT"
+    if signal == "SELL" and bearish_pullback:
+        return "SELL_PULLBACK"
+    if signal == "SELL" and bearish_breakout:
+        return "SELL_BREAKOUT"
+    return "NONE"
+
+
+def scan_pair(pair: str) -> dict[str, object]:
+    candles = completed_candles(fetch_candles(pair, interval="5m", range_="5d"))
+    trend_candles = completed_candles(fetch_candles(pair, interval="15m", range_="10d"))
+    return evaluate_signal(pair=pair, candles=candles, trend_candles=trend_candles, timestamp=now_iso())
 
 
 def force_scan() -> list[dict[str, object]]:
     signals = [scan_pair(pair) for pair in FOREX_PAIRS]
     for signal in signals:
         insert_trade(signal)
-    actionable = [signal for signal in signals if signal["signal"] in {"BUY", "SELL"} and float(signal["confidence"]) >= 0.7]
+    actionable = [signal for signal in signals if signal["signal"] in {"BUY", "SELL"} and float(signal["confidence"]) >= 0.6]
     if actionable:
         best_signal = max(actionable, key=lambda signal: (float(signal["confidence"]), float(signal["setup_score"]), float(signal["rr"])))
         send_signal_notification(best_signal)
