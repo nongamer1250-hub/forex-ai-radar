@@ -142,43 +142,28 @@ def evaluate_signal(
     recent_low = min(candle.low for candle in candles[-21:-1])
     atr_ratio = current_atr / max(latest.close, 0.00001)
     trend_strength = abs(ema_50 - ema_200) / max(current_atr, 0.00001)
-    near_fast = abs(latest.close - fast) <= current_atr * 0.65
-    touched_pullback_buy = latest.low <= fast + current_atr * 0.15
-    touched_pullback_sell = latest.high >= fast - current_atr * 0.15
-    breakout_buffer = current_atr * 0.12
-    bullish_breakout = (
-        latest.close > recent_high + breakout_buffer
-        and previous.close <= recent_high
-        and latest.close > fast > ema_50
-        and current_rsi <= 66
-        and strength >= 0.45
-        and macd_hist > 0
-    )
-    bearish_breakout = (
-        latest.close < recent_low - breakout_buffer
-        and previous.close >= recent_low
-        and latest.close < fast < ema_50
-        and current_rsi >= 34
-        and strength <= -0.45
-        and macd_hist < 0
-    )
+    near_fast = abs(latest.close - fast) <= current_atr * 0.9
+    touched_pullback_buy = latest.low <= fast + current_atr * 0.28
+    touched_pullback_sell = latest.high >= fast - current_atr * 0.28
+    recovered_buy = latest.close >= fast - current_atr * 0.1 and latest.close >= previous.close - current_atr * 0.08
+    recovered_sell = latest.close <= fast + current_atr * 0.1 and latest.close <= previous.close + current_atr * 0.08
     bullish_pullback = (
         latest.close > ema_50
         and near_fast
         and touched_pullback_buy
-        and latest.close >= fast
-        and 47 <= current_rsi <= 58
-        and strength >= 0.22
-        and macd_hist > 0
+        and recovered_buy
+        and 45 <= current_rsi <= 62
+        and strength >= -0.1
+        and macd_hist >= -0.00003
     )
     bearish_pullback = (
         latest.close < ema_50
         and near_fast
         and touched_pullback_sell
-        and latest.close <= fast
-        and 42 <= current_rsi <= 53
-        and strength <= -0.22
-        and macd_hist < 0
+        and recovered_sell
+        and 38 <= current_rsi <= 55
+        and strength <= 0.1
+        and macd_hist <= 0.00003
     )
 
     buy_score = 0
@@ -189,39 +174,39 @@ def evaluate_signal(
     sell_score += 20 if higher_timeframe_bias == "BEARISH" else 0
     buy_score += 12 if fast > slow and fast_slope > 0 and slow_slope >= 0 and ema_50_slope > 0 else 0
     sell_score += 12 if fast < slow and fast_slope < 0 and slow_slope <= 0 and ema_50_slope < 0 else 0
-    buy_score += 10 if macd_hist > 0 else 0
-    sell_score += 10 if macd_hist < 0 else 0
-    buy_score += 12 if bullish_pullback else 16 if bullish_breakout else 0
-    sell_score += 12 if bearish_pullback else 16 if bearish_breakout else 0
-    buy_score += 8 if 48 <= current_rsi <= 60 else 0
-    sell_score += 8 if 40 <= current_rsi <= 52 else 0
-    buy_score += 6 if strength >= 0.3 else 0
-    sell_score += 6 if strength <= -0.3 else 0
-    buy_score += 8 if current_adx >= 18 else 0
-    sell_score += 8 if current_adx >= 18 else 0
+    buy_score += 8 if macd_hist >= -0.00003 else 0
+    sell_score += 8 if macd_hist <= 0.00003 else 0
+    buy_score += 16 if bullish_pullback else 0
+    sell_score += 16 if bearish_pullback else 0
+    buy_score += 8 if 46 <= current_rsi <= 61 else 0
+    sell_score += 8 if 39 <= current_rsi <= 54 else 0
+    buy_score += 4 if strength >= -0.05 else 0
+    sell_score += 4 if strength <= 0.05 else 0
+    buy_score += 8 if current_adx >= 14 else 0
+    sell_score += 8 if current_adx >= 14 else 0
 
     market_ok = 0.00006 <= atr_ratio <= 0.0035
-    structural_ok = trend_strength >= 1.2
+    structural_ok = trend_strength >= 0.35
     buy_valid = (
         trend_bias == higher_timeframe_bias == "BULLISH"
-        and current_rsi <= 66
-        and current_adx >= 18
-        and fast_slope > 0
-        and ema_50_slope > 0
+        and current_rsi <= 62
+        and current_adx >= 14
+        and fast_slope >= -current_atr * 0.08
+        and ema_50_slope >= -current_atr * 0.04
         and structural_ok
         and bullish_pullback
     )
     sell_valid = (
         trend_bias == higher_timeframe_bias == "BEARISH"
-        and current_rsi >= 34
-        and current_adx >= 18
-        and fast_slope < 0
-        and ema_50_slope < 0
+        and current_rsi >= 38
+        and current_adx >= 14
+        and fast_slope <= current_atr * 0.08
+        and ema_50_slope <= current_atr * 0.04
         and structural_ok
         and bearish_pullback
     )
 
-    if max(buy_score, sell_score) < 80 or not market_ok or not structural_ok:
+    if max(buy_score, sell_score) < 76 or not market_ok or not structural_ok:
         signal = "WAIT"
         score = max(buy_score, sell_score)
     elif buy_score >= sell_score and buy_valid:
@@ -236,9 +221,9 @@ def evaluate_signal(
 
     setup_type = resolve_setup_type(
         bullish_pullback=bullish_pullback,
-        bullish_breakout=bullish_breakout,
+        bullish_breakout=False,
         bearish_pullback=bearish_pullback,
-        bearish_breakout=bearish_breakout,
+        bearish_breakout=False,
         signal=signal,
     )
 
@@ -254,10 +239,10 @@ def evaluate_signal(
         learning_bias = feedback["total_bias"]
         score = round(score + learning_bias, 2)
 
-        if feedback["block_trade"] or (signal == "BUY" and (score < 82 or learning_bias <= -4)):
+        if feedback["block_trade"] or (signal == "BUY" and (score < 78 or learning_bias <= -4)):
             signal = "WAIT"
             setup_type = "NONE"
-        elif signal == "SELL" and (score < 82 or learning_bias <= -4):
+        elif signal == "SELL" and (score < 78 or learning_bias <= -4):
             signal = "WAIT"
             setup_type = "NONE"
 
