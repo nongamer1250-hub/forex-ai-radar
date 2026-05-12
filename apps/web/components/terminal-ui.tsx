@@ -31,8 +31,9 @@ const navItems = [
 
 export function panelClassName(extra = "") {
   return [
-    "border border-white/7 bg-[linear-gradient(180deg,rgba(10,15,26,0.96),rgba(6,10,18,0.98))]",
-    "shadow-[0_1px_0_rgba(255,255,255,0.03)_inset,0_18px_48px_rgba(2,6,23,0.28)]",
+    "border border-white/8 bg-[linear-gradient(180deg,rgba(8,14,24,0.96),rgba(4,9,16,0.98))]",
+    "shadow-[0_1px_0_rgba(255,255,255,0.03)_inset,0_18px_54px_rgba(2,6,23,0.32)]",
+    "backdrop-blur-xl",
     extra,
   ]
     .join(" ")
@@ -75,8 +76,8 @@ export function statusTone(status: string) {
 
 export function PageEyebrow({ children }: { children: ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-cyan-300/18 bg-cyan-300/10 px-2.5 py-1 font-mono text-[11px] text-cyan-100">
-      <span className="size-1.5 rounded-full bg-cyan-300" />
+    <span className="inline-flex items-center gap-2 rounded-full border border-cyan-300/16 bg-[linear-gradient(90deg,rgba(34,211,238,0.12),rgba(34,211,238,0.04))] px-3 py-1 font-mono text-[11px] text-cyan-100 shadow-[0_0_0_1px_rgba(34,211,238,0.06)]">
+      <span className="size-1.5 rounded-full bg-cyan-300 shadow-[0_0_10px_rgba(103,232,249,0.75)]" />
       {children}
     </span>
   );
@@ -92,15 +93,15 @@ export function SectionHeader({
   icon?: typeof Activity;
 }) {
   return (
-    <div className="mb-4 flex items-center justify-between gap-3">
+    <div className="mb-1 flex items-center justify-between gap-3">
       <div className="flex min-w-0 items-center gap-3">
         {Icon ? (
-          <div className="grid size-8 place-items-center rounded-xl border border-white/8 bg-white/[0.04] text-slate-300">
+          <div className="grid size-9 place-items-center rounded-2xl border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] text-slate-300 shadow-[0_8px_20px_rgba(2,6,23,0.18)]">
             <Icon size={15} />
           </div>
         ) : null}
         <div className="min-w-0">
-          <h2 className="truncate text-sm font-semibold text-white">{title}</h2>
+          <h2 className="truncate text-sm font-semibold tracking-[0.01em] text-white">{title}</h2>
         </div>
       </div>
       {detail ? <span className="font-mono text-[11px] text-slate-500">{detail}</span> : null}
@@ -112,7 +113,7 @@ export function MetricPill({ label, value, tone }: { label: string; value: strin
   return (
     <div
       className={`inline-flex h-8 items-center gap-2 rounded-full border px-3 text-[11px] ${
-        tone ?? "border-white/10 bg-white/[0.04] text-slate-300"
+        tone ?? "border-white/10 bg-white/[0.04] text-slate-300 shadow-[0_8px_18px_rgba(2,6,23,0.16)]"
       }`}
     >
       <span className="text-slate-500">{label}</span>
@@ -142,12 +143,13 @@ export function HeroMetric({
           : "from-cyan-300/16 to-transparent text-cyan-100";
 
   return (
-    <div className={`${surfaceClassName()} relative overflow-hidden p-4`}>
-      <div className={`pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b ${accentTone} opacity-50`} />
+    <div className={`${surfaceClassName()} relative overflow-hidden p-4 sm:p-5`}>
+      <div className={`pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b ${accentTone} opacity-60`} />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/8 to-transparent" />
       <div className="relative">
         <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">{label}</div>
-        <div className="mt-2 font-mono text-[26px] font-semibold text-white">{value}</div>
-        {footnote ? <div className="mt-2 text-xs text-slate-400">{footnote}</div> : null}
+        <div className="mt-2 font-mono text-[26px] font-semibold text-white sm:text-[30px]">{value}</div>
+        {footnote ? <div className="mt-2 max-w-[22rem] text-xs leading-5 text-slate-400">{footnote}</div> : null}
       </div>
     </div>
   );
@@ -158,12 +160,12 @@ export function ConfidenceMeter({ value }: { value: number }) {
   const tone = percent >= 80 ? "from-emerald-300 to-cyan-300" : percent >= 60 ? "from-cyan-300 to-sky-300" : "from-amber-300 to-yellow-300";
 
   return (
-    <div className="grid gap-2">
+    <div className="grid gap-2.5">
       <div className="flex items-center justify-between font-mono text-[11px] text-slate-400">
         <span>Confidence</span>
         <strong className="text-slate-100">{percent}%</strong>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-white/[0.08]">
+      <div className="h-2 overflow-hidden rounded-full border border-white/6 bg-white/[0.06]">
         <div className={`h-full rounded-full bg-gradient-to-r ${tone}`} style={{ width: `${percent}%` }} />
       </div>
     </div>
@@ -185,7 +187,7 @@ export function TerminalSurface({
 }) {
   return (
     <section className={`${surfaceClassName()} overflow-hidden ${className}`.trim()}>
-      <div className="border-b border-white/6 px-4 py-3 sm:px-5">
+      <div className="border-b border-white/6 bg-white/[0.02] px-4 py-3 sm:px-5">
         <SectionHeader title={title} detail={detail} icon={icon} />
       </div>
       <div className="px-4 py-4 sm:px-5">{children}</div>
@@ -203,7 +205,7 @@ export function DataChip({
   tone?: string;
 }) {
   return (
-    <div className={`rounded-2xl border px-3 py-2 ${tone ?? "border-white/8 bg-white/[0.03]"}`}>
+    <div className={`rounded-2xl border px-3 py-2.5 ${tone ?? "border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))]"}`}>
       <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{label}</div>
       <div className="mt-1 font-mono text-sm text-white">{value}</div>
     </div>
@@ -227,8 +229,8 @@ export function SignalCard({
     <Wrapper
       className={`group w-full rounded-2xl border text-left transition ${
         active
-          ? "border-cyan-300/30 bg-cyan-300/[0.09] shadow-[0_0_0_1px_rgba(34,211,238,0.08)]"
-          : "border-white/8 bg-white/[0.03] hover:border-white/14 hover:bg-white/[0.05]"
+          ? "border-cyan-300/30 bg-[linear-gradient(180deg,rgba(34,211,238,0.12),rgba(34,211,238,0.05))] shadow-[0_0_0_1px_rgba(34,211,238,0.1),0_18px_30px_rgba(8,47,73,0.18)]"
+          : "border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] hover:border-white/14 hover:bg-white/[0.05]"
       } ${compact ? "p-3" : "p-4"}`}
       {...(onClick ? { onClick, type: "button" as const } : {})}
     >
@@ -297,12 +299,13 @@ export function TerminalShell({
 
   return (
     <main className="min-h-screen bg-[#04070d] text-slate-100">
-      <div className="mx-auto grid min-h-screen max-w-[1680px] grid-cols-1 xl:grid-cols-[260px_minmax(0,1fr)]">
-        <aside className="hidden border-r border-white/6 xl:block">
-          <div className="sticky top-0 flex h-screen flex-col gap-3 px-4 py-4">
-            <div className={`${surfaceClassName()} p-4`}>
+      <div className="mx-auto grid min-h-screen max-w-[1760px] grid-cols-1 xl:grid-cols-[282px_minmax(0,1fr)]">
+        <aside className="hidden border-r border-white/6 bg-[linear-gradient(180deg,rgba(3,7,12,0.94),rgba(2,5,11,0.98))] xl:block">
+          <div className="sticky top-0 flex h-screen flex-col gap-4 px-4 py-4">
+            <div className={`${surfaceClassName("relative overflow-hidden")} p-4`}>
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.16),transparent_60%)]" />
               <div className="flex items-center gap-3">
-                <div className="grid size-11 place-items-center rounded-2xl bg-[linear-gradient(180deg,rgba(34,211,238,0.18),rgba(34,211,238,0.06))] font-mono text-base font-black text-cyan-100 shadow-[0_0_24px_rgba(34,211,238,0.12)]">
+                <div className="grid size-12 place-items-center rounded-[18px] border border-cyan-300/16 bg-[linear-gradient(180deg,rgba(34,211,238,0.18),rgba(34,211,238,0.04))] font-mono text-base font-black text-cyan-100 shadow-[0_0_30px_rgba(34,211,238,0.1)]">
                   FX
                 </div>
                 <div className="min-w-0">
@@ -317,10 +320,10 @@ export function TerminalShell({
                 const active = pathname === item.href;
                 return (
                   <Link
-                    className={`rounded-2xl border px-3 py-2.5 transition ${
+                    className={`rounded-[20px] border px-3 py-3 transition ${
                       active
-                        ? "border-cyan-300/30 bg-cyan-300/[0.1]"
-                        : "border-white/8 bg-white/[0.02] hover:border-white/14 hover:bg-white/[0.04]"
+                        ? "border-cyan-300/26 bg-[linear-gradient(180deg,rgba(34,211,238,0.13),rgba(34,211,238,0.06))] shadow-[0_14px_28px_rgba(8,47,73,0.14)]"
+                        : "border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.028),rgba(255,255,255,0.012))] hover:border-white/14 hover:bg-white/[0.04]"
                     }`}
                     href={item.href}
                     key={item.href}
@@ -347,7 +350,8 @@ export function TerminalShell({
             </nav>
 
             <div className="mt-auto grid gap-3">
-              <div className={`${surfaceClassName()} p-4`}>
+              <div className={`${surfaceClassName("relative overflow-hidden")} p-4`}>
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),transparent)]" />
                 <div className="mb-3 flex items-center gap-2">
                   <Sparkles size={14} className="text-cyan-300" />
                   <span className="text-sm font-medium text-white">{session?.user_name ?? "Guest"}</span>
@@ -369,7 +373,7 @@ export function TerminalShell({
               </div>
 
               <button
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 transition hover:border-white/16 hover:bg-white/[0.07]"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))] px-4 py-3 text-sm text-slate-200 transition hover:border-white/16 hover:bg-white/[0.07]"
                 onClick={() => {
                   void signOut();
                 }}
@@ -383,13 +387,13 @@ export function TerminalShell({
         </aside>
 
         <section className="min-w-0">
-          <header className="sticky top-0 z-30 border-b border-white/6 bg-[rgba(4,7,13,0.86)] backdrop-blur-xl">
-            <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-3 px-4 py-4 sm:px-5 xl:px-7">
+          <header className="sticky top-0 z-30 border-b border-white/6 bg-[rgba(3,7,12,0.82)] backdrop-blur-2xl">
+            <div className="mx-auto flex w-full max-w-[1760px] flex-col gap-3 px-4 py-4 sm:px-5 xl:px-7">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div className="min-w-0">
                   <PageEyebrow>Live market workspace</PageEyebrow>
                   <div className="mt-3 flex flex-wrap items-center gap-3">
-                    <h1 className="text-[26px] font-semibold tracking-tight text-white sm:text-[32px]">{title}</h1>
+                    <h1 className="text-[28px] font-semibold tracking-tight text-white sm:text-[34px]">{title}</h1>
                     <MetricPill label="Updated" value={now} />
                   </div>
                   <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">{subtitle}</p>
@@ -436,7 +440,7 @@ export function TerminalShell({
                     <Link
                       className={`flex min-w-0 flex-col items-center gap-2 rounded-2xl border px-2 py-3 text-center text-[11px] transition ${
                         active
-                          ? "border-cyan-300/30 bg-cyan-300/[0.12] text-cyan-100"
+                          ? "border-cyan-300/30 bg-cyan-300/[0.12] text-cyan-100 shadow-[0_10px_24px_rgba(8,47,73,0.14)]"
                           : "border-white/8 bg-white/[0.03] text-slate-300 hover:border-white/14"
                       }`}
                       href={item.href}
@@ -451,14 +455,14 @@ export function TerminalShell({
             </div>
           </header>
 
-          <div className="mx-auto w-full max-w-[1680px] px-4 pb-24 pt-4 sm:px-5 xl:px-7 xl:pb-8">
+          <div className="mx-auto w-full max-w-[1760px] px-4 pb-24 pt-4 sm:px-5 xl:px-7 xl:pb-8">
             <div className={density === "comfortable" ? "space-y-5" : "space-y-4"}>{children}</div>
           </div>
         </section>
       </div>
 
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 border-t border-white/6 bg-[rgba(4,7,13,0.84)] px-3 py-3 backdrop-blur-xl xl:hidden">
-        <div className="mx-auto flex max-w-md items-center justify-between rounded-2xl border border-white/8 bg-white/[0.04] px-3 py-2">
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 border-t border-white/6 bg-[rgba(3,7,12,0.84)] px-3 py-3 backdrop-blur-2xl xl:hidden">
+        <div className="mx-auto flex max-w-md items-center justify-between rounded-[22px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))] px-3 py-2 shadow-[0_18px_30px_rgba(2,6,23,0.24)]">
           {navItems.map((item) => {
             const active = pathname === item.href;
             return (

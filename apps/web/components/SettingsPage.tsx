@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Settings, SlidersHorizontal } from "lucide-react";
+import { Bell, ChevronRight, Settings, Shield, SlidersHorizontal, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import {
@@ -59,7 +59,7 @@ export function SettingsPage() {
   return (
     <TerminalShell
       title="Settings"
-      subtitle="Tune your personal workspace, Telegram routing, and, if you are admin, the live signal engine controls."
+      subtitle="Shape the terminal around your workflow: profile defaults, routing preferences, and, for admin, live engine governance."
       preferences={data?.preferences}
       actions={
         <>
@@ -68,9 +68,9 @@ export function SettingsPage() {
         </>
       }
     >
-      <div className="grid gap-4 2xl:grid-cols-[minmax(0,1.2fr)_420px]">
+      <div className="grid gap-4 2xl:grid-cols-[minmax(0,1.15fr)_400px]">
         <div className="grid gap-4">
-          <TerminalSurface title="Workspace Profile" detail="Key scoped" icon={Settings}>
+          <TerminalSurface title="Workspace Profile" detail="Key scoped" icon={UserRound}>
             <div className="grid gap-5">
               <div>
                 <div className="mb-3 text-sm text-slate-400">Watchlist</div>
@@ -205,7 +205,7 @@ export function SettingsPage() {
           <TerminalSurface
             title="Telegram Delivery"
             detail={session?.role === "ADMIN" ? "Admin may manage many recipients" : "Users may keep one recipient"}
-            icon={Settings}
+            icon={Bell}
           >
             <div className="grid gap-4">
               <div className="flex flex-col gap-3 sm:flex-row">
@@ -270,7 +270,7 @@ export function SettingsPage() {
         </div>
 
         <div className="grid content-start gap-4">
-          <TerminalSurface title="Profile Snapshot" icon={Settings}>
+          <TerminalSurface title="Profile Snapshot" icon={Shield}>
             <div className="grid gap-3 sm:grid-cols-2">
               <DataChip label="Default Pair" value={preferences.selected_pair} />
               <DataChip label="Watchlist Size" value={String(preferences.watchlist.length)} />
