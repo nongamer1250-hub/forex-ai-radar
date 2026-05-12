@@ -59,7 +59,7 @@ export function SettingsPage() {
   return (
     <TerminalShell
       title="Settings"
-      subtitle="Shape the terminal around your workflow: profile defaults, routing preferences, and, for admin, live engine governance."
+      subtitle="Configure your workspace preferences, notification routing, and platform controls."
       preferences={data?.preferences}
       actions={
         <>
@@ -68,23 +68,25 @@ export function SettingsPage() {
         </>
       }
     >
-      <div className="grid gap-4 2xl:grid-cols-[minmax(0,1.15fr)_400px]">
-        <div className="grid gap-4">
+      <div className="grid gap-4 2xl:grid-cols-[1fr_400px]">
+        <div className="space-y-4">
+          {/* Workspace Profile */}
           <TerminalSurface title="Workspace Profile" detail="Key scoped" icon={UserRound}>
-            <div className="grid gap-5">
+            <div className="space-y-6">
+              {/* Watchlist */}
               <div>
-                <div className="mb-3 text-sm text-slate-400">Watchlist</div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
+                <div className="mb-3 text-sm font-medium text-zinc-300">Watchlist</div>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {STRATEGY_PAIRS.map((pair) => {
                     const enabled = preferences.watchlist.includes(pair);
                     return (
                       <button
-                        className={`rounded-2xl border px-3 py-3 text-left text-sm transition ${
-                          enabled
-                            ? "border-cyan-300/30 bg-cyan-300/[0.1] text-cyan-100"
-                            : "border-white/8 bg-white/[0.03] text-slate-300 hover:border-white/14"
-                        }`}
                         key={pair}
+                        className={`rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+                          enabled
+                            ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-400"
+                            : "border-zinc-800 bg-zinc-800/40 text-zinc-400 hover:border-zinc-700"
+                        }`}
                         onClick={() =>
                           setPreferences((current) => {
                             const nextWatchlist = enabled
@@ -108,25 +110,24 @@ export function SettingsPage() {
                 </div>
               </div>
 
-              <div className="grid gap-4 lg:grid-cols-2">
+              {/* Selects */}
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="mb-2 block text-sm text-slate-400">Default pair</label>
+                  <label className="mb-2 block text-sm text-zinc-400">Default pair</label>
                   <select
-                    className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm"
+                    className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-sm text-zinc-100"
                     onChange={(event) => setPreferences((current) => ({ ...current, selected_pair: event.target.value }))}
                     value={preferences.selected_pair}
                   >
                     {preferences.watchlist.map((pair) => (
-                      <option key={pair} value={pair}>
-                        {pair}
-                      </option>
+                      <option key={pair} value={pair}>{pair}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm text-slate-400">Density</label>
+                  <label className="mb-2 block text-sm text-zinc-400">Density</label>
                   <select
-                    className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm"
+                    className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-sm text-zinc-100"
                     onChange={(event) =>
                       setPreferences((current) => ({
                         ...current,
@@ -141,14 +142,15 @@ export function SettingsPage() {
                 </div>
               </div>
 
-              <label className="flex items-center justify-between rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3">
+              {/* Toggles */}
+              <label className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-800/30 p-4 cursor-pointer">
                 <div>
-                  <div className="text-sm text-white">Telegram notifications</div>
-                  <div className="mt-1 text-xs text-slate-500">Enable or mute delivery without deleting your saved destination.</div>
+                  <div className="text-sm font-medium text-zinc-200">Telegram notifications</div>
+                  <div className="mt-1 text-xs text-zinc-500">Enable or mute delivery.</div>
                 </div>
                 <input
                   checked={preferences.notifications_enabled}
-                  className="accent-cyan-300"
+                  className="size-5 accent-cyan-500"
                   onChange={(event) =>
                     setPreferences((current) => ({ ...current, notifications_enabled: event.target.checked }))
                   }
@@ -156,17 +158,17 @@ export function SettingsPage() {
                 />
               </label>
 
-              <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4">
+              <div className="rounded-xl border border-zinc-800 bg-zinc-800/30 p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <div className="text-sm text-white">Auto demo trading</div>
-                    <div className="mt-1 text-xs leading-5 text-slate-500">
-                      When enabled, the demo account can pick the best live signal automatically when no paper trade is open.
+                    <div className="text-sm font-medium text-zinc-200">Auto demo trading</div>
+                    <div className="mt-1 text-xs text-zinc-500">
+                      Let the demo account pick the best live signal automatically.
                     </div>
                   </div>
                   <input
                     checked={preferences.demo_auto_trade_enabled}
-                    className="accent-cyan-300"
+                    className="size-5 accent-cyan-500"
                     onChange={(event) =>
                       setPreferences((current) => ({ ...current, demo_auto_trade_enabled: event.target.checked }))
                     }
@@ -174,9 +176,9 @@ export function SettingsPage() {
                   />
                 </div>
                 <div className="mt-4">
-                  <label className="mb-2 block text-sm text-slate-400">Auto demo units</label>
+                  <label className="mb-2 block text-sm text-zinc-400">Auto demo units</label>
                   <input
-                    className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm"
+                    className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-sm text-zinc-100"
                     min={100}
                     onChange={(event) =>
                       setPreferences((current) => ({
@@ -192,7 +194,7 @@ export function SettingsPage() {
               </div>
 
               <button
-                className="rounded-2xl border border-cyan-300/25 bg-cyan-300/12 px-4 py-3 text-sm font-medium text-cyan-100 transition hover:bg-cyan-300/20 disabled:opacity-60"
+                className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 px-4 py-3 text-sm font-semibold text-zinc-900 shadow-lg shadow-cyan-500/20 transition-all hover:shadow-cyan-500/30 disabled:opacity-50"
                 disabled={isPending || preferences.watchlist.length === 0}
                 onClick={() => savePreferences(preferences)}
                 type="button"
@@ -202,22 +204,23 @@ export function SettingsPage() {
             </div>
           </TerminalSurface>
 
+          {/* Telegram Delivery */}
           <TerminalSurface
             title="Telegram Delivery"
-            detail={session?.role === "ADMIN" ? "Admin may manage many recipients" : "Users may keep one recipient"}
+            detail={session?.role === "ADMIN" ? "Admin can manage multiple" : "One recipient"}
             icon={Bell}
           >
-            <div className="grid gap-4">
+            <div className="space-y-4">
               <div className="flex flex-col gap-3 sm:flex-row">
                 <input
-                  className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm"
+                  className="flex-1 rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500"
                   maxLength={32}
                   onChange={(event) => setRecipientInput(event.target.value)}
-                  placeholder={session?.role === "ADMIN" ? "Add another Telegram chat id" : "Add your Telegram chat id"}
+                  placeholder={session?.role === "ADMIN" ? "Add another chat ID" : "Add your chat ID"}
                   value={recipientInput}
                 />
                 <button
-                  className="rounded-2xl border border-cyan-300/25 bg-cyan-300/12 px-4 py-3 text-sm font-medium text-cyan-100 transition hover:bg-cyan-300/20 disabled:opacity-60"
+                  className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-sm font-medium text-cyan-400 transition-all hover:bg-cyan-500/20 disabled:opacity-50"
                   disabled={!recipientInput.trim() || (session?.role !== "ADMIN" && recipients.length >= 1)}
                   onClick={() => {
                     void addTelegramRecipient(recipientInput).then((next) => {
@@ -231,19 +234,19 @@ export function SettingsPage() {
                 </button>
               </div>
 
-              <div className="grid gap-3">
+              <div className="space-y-3">
                 {recipients.map((recipient) => (
-                  <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4" key={recipient.recipient_id}>
+                  <div key={recipient.recipient_id} className="rounded-xl border border-zinc-800 bg-zinc-800/30 p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0">
-                        <div className="truncate font-mono text-sm text-white">{recipient.chat_id}</div>
-                        <div className="mt-1 text-xs text-slate-500">
-                          {recipient.is_enabled ? "Enabled for delivery" : "Muted"}
+                      <div>
+                        <div className="font-mono text-sm text-zinc-100">{recipient.chat_id}</div>
+                        <div className="mt-1 text-xs text-zinc-500">
+                          {recipient.is_enabled ? "Enabled" : "Muted"}
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex gap-2">
                         <button
-                          className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-xs text-slate-200 transition hover:bg-white/[0.08]"
+                          className="rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-2 text-xs text-zinc-300 transition-colors hover:bg-zinc-700"
                           onClick={() => {
                             void toggleTelegramRecipient(recipient.recipient_id, !recipient.is_enabled).then(setRecipients);
                           }}
@@ -252,7 +255,7 @@ export function SettingsPage() {
                           {recipient.is_enabled ? "Disable" : "Enable"}
                         </button>
                         <button
-                          className="rounded-full border border-rose-300/25 bg-rose-300/12 px-3 py-2 text-xs text-rose-100 transition hover:bg-rose-300/20"
+                          className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-400 transition-colors hover:bg-rose-500/20"
                           onClick={() => {
                             void removeTelegramRecipient(recipient.recipient_id).then(setRecipients);
                           }}
@@ -269,11 +272,12 @@ export function SettingsPage() {
           </TerminalSurface>
         </div>
 
-        <div className="grid content-start gap-4">
+        {/* Sidebar */}
+        <div className="space-y-4">
           <TerminalSurface title="Profile Snapshot" icon={Shield}>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-3">
               <DataChip label="Default Pair" value={preferences.selected_pair} />
-              <DataChip label="Watchlist Size" value={String(preferences.watchlist.length)} />
+              <DataChip label="Watchlist" value={String(preferences.watchlist.length)} />
               <DataChip label="Density" value={preferences.density_mode} />
               <DataChip label="Alerts" value={preferences.notifications_enabled ? "On" : "Off"} />
               <DataChip label="Auto Demo" value={preferences.demo_auto_trade_enabled ? "On" : "Off"} />
@@ -281,22 +285,23 @@ export function SettingsPage() {
             </div>
           </TerminalSurface>
 
-          {session?.role === "ADMIN" ? (
-            <TerminalSurface title="Signal Engine Controls" detail="Admin only" icon={SlidersHorizontal}>
-              <div className="grid gap-5">
+          {/* Admin Controls */}
+          {session?.role === "ADMIN" && (
+            <TerminalSurface title="Engine Controls" detail="Admin only" icon={SlidersHorizontal}>
+              <div className="space-y-5">
                 <div>
-                  <div className="mb-3 text-sm text-slate-400">Enabled pairs</div>
+                  <div className="mb-3 text-sm text-zinc-400">Enabled pairs</div>
                   <div className="grid grid-cols-2 gap-2">
                     {STRATEGY_PAIRS.map((pair) => {
                       const enabled = settings.enabled_pairs.includes(pair);
                       return (
                         <button
-                          className={`rounded-2xl border px-3 py-3 text-left text-sm transition ${
-                            enabled
-                              ? "border-cyan-300/30 bg-cyan-300/[0.1] text-cyan-100"
-                              : "border-white/8 bg-white/[0.03] text-slate-300 hover:border-white/14"
-                          }`}
                           key={pair}
+                          className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition-all ${
+                            enabled
+                              ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-400"
+                              : "border-zinc-800 bg-zinc-800/40 text-zinc-500 hover:border-zinc-700"
+                          }`}
                           onClick={() =>
                             setSettings((current) => ({
                               ...current,
@@ -315,18 +320,18 @@ export function SettingsPage() {
                 </div>
 
                 <div>
-                  <div className="mb-3 text-sm text-slate-400">Enabled setups</div>
-                  <div className="grid gap-2">
+                  <div className="mb-3 text-sm text-zinc-400">Enabled setups</div>
+                  <div className="space-y-2">
                     {STRATEGY_SETUPS.map((setup) => {
                       const enabled = settings.enabled_setups.includes(setup);
                       return (
                         <button
-                          className={`rounded-2xl border px-3 py-3 text-left text-sm transition ${
-                            enabled
-                              ? "border-emerald-300/30 bg-emerald-300/[0.1] text-emerald-100"
-                              : "border-white/8 bg-white/[0.03] text-slate-300 hover:border-white/14"
-                          }`}
                           key={setup}
+                          className={`w-full rounded-xl border px-4 py-3 text-left text-sm font-medium transition-all ${
+                            enabled
+                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                              : "border-zinc-800 bg-zinc-800/40 text-zinc-500 hover:border-zinc-700"
+                          }`}
                           onClick={() =>
                             setSettings((current) => ({
                               ...current,
@@ -345,12 +350,12 @@ export function SettingsPage() {
                 </div>
 
                 <div>
-                  <div className="mb-2 flex items-center justify-between text-sm text-slate-400">
-                    <span>Telegram minimum confidence</span>
-                    <strong className="font-mono text-white">{Math.round(settings.min_confidence * 100)}%</strong>
+                  <div className="mb-2 flex items-center justify-between text-sm">
+                    <span className="text-zinc-400">Min confidence</span>
+                    <span className="font-mono text-zinc-200">{Math.round(settings.min_confidence * 100)}%</span>
                   </div>
                   <input
-                    className="w-full accent-cyan-300"
+                    className="w-full accent-cyan-500"
                     max={0.9}
                     min={0.4}
                     onChange={(event) =>
@@ -362,14 +367,14 @@ export function SettingsPage() {
                   />
                 </div>
 
-                <label className="flex items-center justify-between rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3">
+                <label className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-800/30 p-4 cursor-pointer">
                   <div>
-                    <div className="text-sm text-white">Auto pair blocking</div>
-                    <div className="mt-1 text-xs text-slate-500">Let the optimizer suppress weak pairs automatically.</div>
+                    <div className="text-sm font-medium text-zinc-200">Auto pair blocking</div>
+                    <div className="mt-1 text-xs text-zinc-500">Suppress weak pairs automatically.</div>
                   </div>
                   <input
                     checked={settings.auto_block_enabled}
-                    className="accent-cyan-300"
+                    className="size-5 accent-cyan-500"
                     onChange={(event) =>
                       setSettings((current) => ({ ...current, auto_block_enabled: event.target.checked }))
                     }
@@ -379,7 +384,7 @@ export function SettingsPage() {
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <button
-                    className="rounded-2xl border border-cyan-300/25 bg-cyan-300/12 px-4 py-3 text-sm font-medium text-cyan-100 transition hover:bg-cyan-300/20 disabled:opacity-60"
+                    className="rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 px-4 py-3 text-sm font-semibold text-zinc-900 disabled:opacity-50"
                     disabled={isPending}
                     onClick={() => saveSettings(settings)}
                     type="button"
@@ -387,7 +392,7 @@ export function SettingsPage() {
                     Save controls
                   </button>
                   <button
-                    className="rounded-2xl border border-rose-300/25 bg-rose-300/12 px-4 py-3 text-sm font-medium text-rose-100 transition hover:bg-rose-300/20 disabled:opacity-60"
+                    className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-400 disabled:opacity-50"
                     disabled={isPending}
                     onClick={hardReset}
                     type="button"
@@ -396,25 +401,23 @@ export function SettingsPage() {
                   </button>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-2 gap-3">
                   <DataChip label="Auto Blocked" value={data?.optimizer?.auto_blocked_pairs.join(", ") || "None"} />
-                  <DataChip label="Min Confidence" value={formatNumber(settings.min_confidence * 100, "%")} />
-                  <DataChip label="Recommended On" value={String(data?.optimizer?.recommended_enabled_pairs.length ?? 0)} />
-                  <DataChip label="Recommended Off" value={String(data?.optimizer?.recommended_disabled_pairs.length ?? 0)} />
+                  <DataChip label="Min Conf" value={formatNumber(settings.min_confidence * 100, "%")} />
                 </div>
 
                 <button
-                  className="inline-flex items-center justify-between rounded-2xl border border-amber-300/25 bg-amber-300/12 px-4 py-3 text-sm font-medium text-amber-100 transition hover:bg-amber-300/20 disabled:opacity-60"
+                  className="flex w-full items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-400 transition-all hover:bg-amber-500/20 disabled:opacity-50"
                   disabled={isPending}
                   onClick={applyOptimizerNow}
                   type="button"
                 >
                   <span>Apply optimizer recommendations</span>
-                  <ChevronRight size={15} />
+                  <ChevronRight size={16} />
                 </button>
               </div>
             </TerminalSurface>
-          ) : null}
+          )}
         </div>
       </div>
     </TerminalShell>
