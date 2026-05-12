@@ -196,5 +196,7 @@ export interface UserPreferences {
   selected_pair: string;
   density_mode: "compact" | "comfortable";
   notifications_enabled: boolean;
+  demo_auto_trade_enabled: boolean;
+  demo_auto_trade_units: number;
   updated_at: string;
 }

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useTransition } from "react";
 
-import { applyOptimizer, createDemoTrade, forceScan, getDashboardState, getDemoAccount, getDemoTrades, resetDemoAccount, resetState, runTradeManager, saveStrategySettings, saveUserPreferences } from "@/lib/api";
+import { applyOptimizer, autoDemoTrade, createDemoTrade, forceScan, getDashboardState, getDemoAccount, getDemoTrades, resetDemoAccount, resetState, runTradeManager, saveStrategySettings, saveUserPreferences } from "@/lib/api";
 import type { DashboardState, DemoAccount, DemoTrade, StrategySettings, UserPreferences } from "@/lib/types";
 
 export function useDashboardData() {
@@ -58,6 +58,7 @@ export function useDashboardData() {
 export function useDemoData() {
   const [account, setAccount] = useState<DemoAccount | null>(null);
   const [trades, setTrades] = useState<DemoTrade[]>([]);
+  const [autoTradeStatus, setAutoTradeStatus] = useState<string>("");
   const [isPending, startTransition] = useTransition();
 
   const refresh = useCallback(async () => {
@@ -78,6 +79,7 @@ export function useDemoData() {
   return {
     account,
     trades,
+    autoTradeStatus,
     isPending,
     refresh,
     submitTrade(payload: {
@@ -97,6 +99,14 @@ export function useDemoData() {
     resetAccount() {
       startTransition(() => {
         void resetDemoAccount().then(refresh);
+      });
+    },
+    runAutoTrade() {
+      startTransition(() => {
+        void autoDemoTrade().then(async (result) => {
+          setAutoTradeStatus(result?.status ?? "");
+          await refresh();
+        });
       });
     },
   };

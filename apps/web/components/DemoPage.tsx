@@ -1,6 +1,6 @@
 "use client";
 
-import { Wallet } from "lucide-react";
+import { Bot, Wallet } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -20,7 +20,7 @@ import { STRATEGY_PAIRS } from "@/lib/constants";
 
 export function DemoPage() {
   const { data } = useDashboardData();
-  const { account, trades, submitTrade, resetAccount, isPending } = useDemoData();
+  const { account, trades, submitTrade, resetAccount, runAutoTrade, autoTradeStatus, isPending } = useDemoData();
   const liveSignals = data?.signals.filter((item) => item.signal === "BUY" || item.signal === "SELL") ?? [];
   const [selectedSignalId, setSelectedSignalId] = useState("");
   const selectedSignal = useMemo(
@@ -33,6 +33,14 @@ export function DemoPage() {
   const [manualEntry, setManualEntry] = useState(1.1);
   const [manualSl, setManualSl] = useState(1.095);
   const [manualTp, setManualTp] = useState(1.11);
+  const preferences = data?.preferences;
+
+  useEffect(() => {
+    if (!preferences?.demo_auto_trade_enabled) {
+      return;
+    }
+    void runAutoTrade();
+  }, [preferences?.demo_auto_trade_enabled, data?.signals, runAutoTrade]);
 
   useEffect(() => {
     if (!selectedSignalId && liveSignals[0]) {
@@ -69,7 +77,29 @@ export function DemoPage() {
         />
       </MiniStatGrid>
 
-      <div className="grid gap-4 2xl:grid-cols-[420px_minmax(0,1fr)]">
+      <div className="grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)]">
+        <TerminalSurface title="Auto Demo Pilot" icon={Bot}>
+          <div className="grid gap-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <DataChip label="Mode" value={preferences?.demo_auto_trade_enabled ? "AUTO" : "MANUAL"} />
+              <DataChip label="Units" value={String(preferences?.demo_auto_trade_units ?? 10000)} />
+            </div>
+            <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
+              {autoTradeStatus
+                ? `Last auto action: ${autoTradeStatus.replaceAll("_", " ")}`
+                : "Enable auto demo in Settings to let the demo account pick the best live signal when no paper trade is open."}
+            </div>
+            <button
+              className="rounded-2xl border border-cyan-300/25 bg-cyan-300/12 px-4 py-3 text-sm font-medium text-cyan-100 transition hover:bg-cyan-300/20 disabled:opacity-60"
+              disabled={isPending}
+              onClick={() => void runAutoTrade()}
+              type="button"
+            >
+              Run auto demo now
+            </button>
+          </div>
+        </TerminalSurface>
+
         <TerminalSurface title="Place Demo Trade" icon={Wallet}>
           <div className="grid gap-4">
             <div>

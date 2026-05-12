@@ -35,7 +35,7 @@ export function AnalyticsPage() {
         <HeroMetric label="Best Pair" value={analytics?.best_pair ?? "N/A"} footnote="Highest current edge based on recorded outcomes." accent="amber" />
       </MiniStatGrid>
 
-      <div className="grid gap-4 2xl:grid-cols-[minmax(0,1.3fr)_420px]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_360px]">
         <div className="grid gap-4">
           <TerminalSurface title="Trade Ledger" detail={`${trades.length} rows`} icon={Activity} className="overflow-hidden">
             {trades.length ? (
@@ -111,7 +111,7 @@ export function AnalyticsPage() {
 
         <div className="grid content-start gap-4">
           <TerminalSurface title="Live Learning Status" icon={BrainCircuit}>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3">
               <DataChip label="Closed Trades Used" value={String(data?.learningStatus?.closed_trades_used ?? 0)} />
               <DataChip label="Net Outcome Score" value={String(data?.learningStatus?.net_outcome_score ?? 0)} />
               <DataChip label="Strongest Pair" value={data?.learningStatus?.strongest_pair ?? "N/A"} />

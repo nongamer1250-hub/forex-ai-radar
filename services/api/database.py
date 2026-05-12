@@ -298,10 +298,33 @@ def init_db() -> None:
                 selected_pair TEXT NOT NULL,
                 density_mode TEXT NOT NULL,
                 notifications_enabled INTEGER NOT NULL DEFAULT 1,
+                demo_auto_trade_enabled INTEGER NOT NULL DEFAULT 0,
+                demo_auto_trade_units DOUBLE PRECISION NOT NULL DEFAULT 10000,
                 updated_at TEXT NOT NULL
             )
             """,
         )
+        profile_columns = {
+            row["column_name"] if isinstance(row, dict) and "column_name" in row else row["name"]
+            for row in (
+                _fetchall_dicts(
+                    _execute(
+                        connection,
+                        """
+                        SELECT column_name
+                        FROM information_schema.columns
+                        WHERE table_name = 'user_profiles'
+                        """
+                        if is_postgres()
+                        else "PRAGMA table_info(user_profiles)"
+                    )
+                )
+            )
+        }
+        if "demo_auto_trade_enabled" not in profile_columns:
+            _execute(connection, "ALTER TABLE user_profiles ADD COLUMN demo_auto_trade_enabled INTEGER NOT NULL DEFAULT 0")
+        if "demo_auto_trade_units" not in profile_columns:
+            _execute(connection, "ALTER TABLE user_profiles ADD COLUMN demo_auto_trade_units DOUBLE PRECISION NOT NULL DEFAULT 10000")
 
         _execute(
             connection,
@@ -950,9 +973,21 @@ def get_user_profile(owner_key_id: str, owner_role: str = "USER") -> dict[str, A
                 "selected_pair": "EURUSD",
                 "density_mode": "compact",
                 "notifications_enabled": 1,
+                "demo_auto_trade_enabled": 0,
+                "demo_auto_trade_units": 10000,
                 "updated_at": now_iso(),
             }
-            columns = ["owner_key_id", "owner_role", "watchlist", "selected_pair", "density_mode", "notifications_enabled", "updated_at"]
+            columns = [
+                "owner_key_id",
+                "owner_role",
+                "watchlist",
+                "selected_pair",
+                "density_mode",
+                "notifications_enabled",
+                "demo_auto_trade_enabled",
+                "demo_auto_trade_units",
+                "updated_at",
+            ]
             placeholders = ", ".join(["%s" if is_postgres() else "?" for _ in columns])
             _execute(
                 connection,
@@ -966,6 +1001,8 @@ def get_user_profile(owner_key_id: str, owner_role: str = "USER") -> dict[str, A
         "selected_pair": profile["selected_pair"],
         "density_mode": profile["density_mode"],
         "notifications_enabled": bool(profile["notifications_enabled"]),
+        "demo_auto_trade_enabled": bool(profile.get("demo_auto_trade_enabled", 0)),
+        "demo_auto_trade_units": round(float(profile.get("demo_auto_trade_units", 10000)), 2),
         "updated_at": profile["updated_at"],
     }
 
@@ -978,6 +1015,8 @@ def save_user_profile(
     selected_pair: str,
     density_mode: str,
     notifications_enabled: bool,
+    demo_auto_trade_enabled: bool,
+    demo_auto_trade_units: float,
 ) -> dict[str, Any]:
     normalized_watchlist = [item for item in watchlist if item]
     payload = {
@@ -987,32 +1026,38 @@ def save_user_profile(
         "selected_pair": selected_pair,
         "density_mode": density_mode,
         "notifications_enabled": 1 if notifications_enabled else 0,
+        "demo_auto_trade_enabled": 1 if demo_auto_trade_enabled else 0,
+        "demo_auto_trade_units": round(max(100.0, demo_auto_trade_units), 2),
         "updated_at": now_iso(),
     }
     with get_connection() as connection:
         _execute(
             connection,
             """
-            INSERT INTO user_profiles (owner_key_id, owner_role, watchlist, selected_pair, density_mode, notifications_enabled, updated_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO user_profiles (owner_key_id, owner_role, watchlist, selected_pair, density_mode, notifications_enabled, demo_auto_trade_enabled, demo_auto_trade_units, updated_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT(owner_key_id) DO UPDATE SET
                 owner_role = EXCLUDED.owner_role,
                 watchlist = EXCLUDED.watchlist,
                 selected_pair = EXCLUDED.selected_pair,
                 density_mode = EXCLUDED.density_mode,
                 notifications_enabled = EXCLUDED.notifications_enabled,
+                demo_auto_trade_enabled = EXCLUDED.demo_auto_trade_enabled,
+                demo_auto_trade_units = EXCLUDED.demo_auto_trade_units,
                 updated_at = EXCLUDED.updated_at
             """
             if is_postgres()
             else """
-            INSERT INTO user_profiles (owner_key_id, owner_role, watchlist, selected_pair, density_mode, notifications_enabled, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO user_profiles (owner_key_id, owner_role, watchlist, selected_pair, density_mode, notifications_enabled, demo_auto_trade_enabled, demo_auto_trade_units, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(owner_key_id) DO UPDATE SET
                 owner_role = excluded.owner_role,
                 watchlist = excluded.watchlist,
                 selected_pair = excluded.selected_pair,
                 density_mode = excluded.density_mode,
                 notifications_enabled = excluded.notifications_enabled,
+                demo_auto_trade_enabled = excluded.demo_auto_trade_enabled,
+                demo_auto_trade_units = excluded.demo_auto_trade_units,
                 updated_at = excluded.updated_at
             """,
             (
@@ -1022,10 +1067,36 @@ def save_user_profile(
                 payload["selected_pair"],
                 payload["density_mode"],
                 payload["notifications_enabled"],
+                payload["demo_auto_trade_enabled"],
+                payload["demo_auto_trade_units"],
                 payload["updated_at"],
             ),
         )
     return get_user_profile(owner_key_id, owner_role)
+
+
+def get_demo_trade_by_source_signal(account_id: str, source_signal_id: str) -> dict[str, Any] | None:
+    with get_connection() as connection:
+        cursor = _execute(
+            connection,
+            """
+            SELECT *
+            FROM demo_trades
+            WHERE account_id = %s AND source_signal_id = %s
+            ORDER BY opened_at DESC
+            LIMIT 1
+            """
+            if is_postgres()
+            else """
+            SELECT *
+            FROM demo_trades
+            WHERE account_id = ? AND source_signal_id = ?
+            ORDER BY opened_at DESC
+            LIMIT 1
+            """,
+            (account_id, source_signal_id),
+        )
+        return _fetchone_dict(cursor)
 
 
 def list_telegram_recipients(*, owner_key_id: str | None = None, owner_role: str | None = None, enabled_only: bool = False) -> list[dict[str, Any]]:

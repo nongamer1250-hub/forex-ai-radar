@@ -37,7 +37,7 @@ from database import (
     reset_runtime_state,
     save_strategy_settings,
 )
-from demo_trading import demo_account_snapshot, demo_trade_history, place_demo_trade, run_demo_trade_manager_for_account
+from demo_trading import auto_place_demo_trade, demo_account_snapshot, demo_trade_history, place_demo_trade, run_demo_trade_manager_for_account
 from learning import learning_status, optimize_strategy, pair_performance
 from scanner import force_scan
 from telegram_settings import add_recipient_for_session, recipients_for_session, remove_recipient_for_session, toggle_recipient_for_session
@@ -339,6 +339,15 @@ def create_demo_trade(
 def demo_reset(session: dict[str, object] = Depends(require_session)) -> dict[str, object]:
     reset_demo_state(str(session["key_id"]))
     return {"status": "reset", "account": demo_account_snapshot(str(session["key_id"]))}
+
+
+@app.post("/demo-auto-trade")
+def demo_auto_trade(session: dict[str, object] = Depends(require_session)) -> dict[str, object]:
+    result = auto_place_demo_trade(str(session["key_id"]))
+    return {
+        **result,
+        "account": demo_account_snapshot(str(session["key_id"])),
+    }
 
 
 @app.post("/force-scan")

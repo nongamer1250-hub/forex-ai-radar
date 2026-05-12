@@ -15,6 +15,8 @@ def write_user_preferences(session: dict[str, object], payload: dict[str, object
     selected_pair = str(payload.get("selected_pair", current["selected_pair"]))
     density_mode = str(payload.get("density_mode", current["density_mode"]))
     notifications_enabled = bool(payload.get("notifications_enabled", current["notifications_enabled"]))
+    demo_auto_trade_enabled = bool(payload.get("demo_auto_trade_enabled", current["demo_auto_trade_enabled"]))
+    demo_auto_trade_units = float(payload.get("demo_auto_trade_units", current["demo_auto_trade_units"]))
     normalized_watchlist = [str(item) for item in watchlist] if isinstance(watchlist, list) else current["watchlist"]
     if density_mode not in ALLOWED_DENSITY:
         density_mode = str(current["density_mode"])
@@ -27,4 +29,6 @@ def write_user_preferences(session: dict[str, object], payload: dict[str, object
         selected_pair=selected_pair,
         density_mode=density_mode,
         notifications_enabled=notifications_enabled,
+        demo_auto_trade_enabled=demo_auto_trade_enabled,
+        demo_auto_trade_units=demo_auto_trade_units,
     )

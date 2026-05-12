@@ -4,9 +4,13 @@ from datetime import UTC, datetime
 from typing import Any
 
 from database import (
+    get_demo_trade_by_source_signal,
     get_demo_account,
+    get_distinct_recent_trades,
     get_demo_trades_for_account,
     get_open_demo_trades_for_account,
+    get_strategy_settings,
+    get_user_profile,
     insert_demo_trade,
     update_demo_trade_status,
 )
@@ -139,3 +143,47 @@ def _run_demo_trade_manager_for_account(account_id: str, open_trades: list[dict[
         )
 
     return {"checked": len(open_trades), "updated": len(updates), "updates": updates}
+
+
+def auto_place_demo_trade(account_id: str) -> dict[str, Any]:
+    profile = get_user_profile(account_id)
+    if not bool(profile.get("demo_auto_trade_enabled", False)):
+        return {"status": "disabled"}
+
+    open_trades = get_open_demo_trades_for_account(account_id)
+    if open_trades:
+        return {"status": "blocked_open_trade", "trade": open_trades[0]}
+
+    settings = get_strategy_settings()
+    enabled_setups = set(settings["enabled_setups"])
+    min_confidence = float(settings["min_confidence"])
+    watchlist = set(profile.get("watchlist", []))
+
+    actionable = [
+        trade
+        for trade in get_distinct_recent_trades(limit=50)
+        if trade.get("signal") in {"BUY", "SELL"}
+        and trade.get("setup_type") in enabled_setups
+        and float(trade.get("confidence", 0)) >= min_confidence
+        and (not watchlist or str(trade.get("pair")) in watchlist)
+    ]
+    if not actionable:
+        return {"status": "no_signal"}
+
+    best_signal = max(actionable, key=lambda trade: (float(trade["confidence"]), float(trade["setup_score"]), float(trade["rr"])))
+    existing = get_demo_trade_by_source_signal(account_id, str(best_signal["signal_id"]))
+    if existing:
+        return {"status": "already_traded", "trade": existing}
+
+    trade = place_demo_trade(
+        account_id=account_id,
+        pair=str(best_signal["pair"]),
+        signal=str(best_signal["signal"]),
+        units=float(profile.get("demo_auto_trade_units", 10000)),
+        entry=float(best_signal["entry"]),
+        sl=float(best_signal["sl"]),
+        tp=float(best_signal["tp"]),
+        rr=float(best_signal["rr"]),
+        source_signal_id=str(best_signal["signal_id"]),
+    )
+    return {"status": "created", "trade": trade, "signal": best_signal}

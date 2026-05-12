@@ -35,6 +35,8 @@ export function SettingsPage() {
     selected_pair: "EURUSD",
     density_mode: "compact",
     notifications_enabled: true,
+    demo_auto_trade_enabled: false,
+    demo_auto_trade_units: 10000,
     updated_at: "",
   });
 
@@ -154,6 +156,41 @@ export function SettingsPage() {
                 />
               </label>
 
+              <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-sm text-white">Auto demo trading</div>
+                    <div className="mt-1 text-xs leading-5 text-slate-500">
+                      When enabled, the demo account can pick the best live signal automatically when no paper trade is open.
+                    </div>
+                  </div>
+                  <input
+                    checked={preferences.demo_auto_trade_enabled}
+                    className="accent-cyan-300"
+                    onChange={(event) =>
+                      setPreferences((current) => ({ ...current, demo_auto_trade_enabled: event.target.checked }))
+                    }
+                    type="checkbox"
+                  />
+                </div>
+                <div className="mt-4">
+                  <label className="mb-2 block text-sm text-slate-400">Auto demo units</label>
+                  <input
+                    className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm"
+                    min={100}
+                    onChange={(event) =>
+                      setPreferences((current) => ({
+                        ...current,
+                        demo_auto_trade_units: Math.max(100, Number(event.target.value) || 100),
+                      }))
+                    }
+                    step={100}
+                    type="number"
+                    value={preferences.demo_auto_trade_units}
+                  />
+                </div>
+              </div>
+
               <button
                 className="rounded-2xl border border-cyan-300/25 bg-cyan-300/12 px-4 py-3 text-sm font-medium text-cyan-100 transition hover:bg-cyan-300/20 disabled:opacity-60"
                 disabled={isPending || preferences.watchlist.length === 0}
@@ -239,6 +276,8 @@ export function SettingsPage() {
               <DataChip label="Watchlist Size" value={String(preferences.watchlist.length)} />
               <DataChip label="Density" value={preferences.density_mode} />
               <DataChip label="Alerts" value={preferences.notifications_enabled ? "On" : "Off"} />
+              <DataChip label="Auto Demo" value={preferences.demo_auto_trade_enabled ? "On" : "Off"} />
+              <DataChip label="Demo Units" value={String(preferences.demo_auto_trade_units)} />
             </div>
           </TerminalSurface>
 

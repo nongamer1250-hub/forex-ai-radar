@@ -176,6 +176,10 @@ export async function resetDemoAccount(): Promise<void> {
   await fetchJson("/demo-reset", {}, { method: "POST" });
 }
 
+export async function autoDemoTrade(): Promise<{ status: string } | null> {
+  return fetchJson<{ status: string } | null>("/demo-auto-trade", null, { method: "POST" });
+}
+
 export async function login(access_key: string, user_name: string): Promise<AuthSession | null> {
   const session = await fetchJson<AuthSession | null>("/auth/login", null, {
     method: "POST",

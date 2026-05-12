@@ -31,8 +31,8 @@ const navItems = [
 
 export function panelClassName(extra = "") {
   return [
-    "border border-white/8 bg-[linear-gradient(180deg,rgba(12,18,30,0.94),rgba(7,11,19,0.98))]",
-    "shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_24px_64px_rgba(2,6,23,0.42)]",
+    "border border-white/7 bg-[linear-gradient(180deg,rgba(10,15,26,0.96),rgba(6,10,18,0.98))]",
+    "shadow-[0_1px_0_rgba(255,255,255,0.03)_inset,0_18px_48px_rgba(2,6,23,0.28)]",
     extra,
   ]
     .join(" ")
@@ -142,11 +142,11 @@ export function HeroMetric({
           : "from-cyan-300/16 to-transparent text-cyan-100";
 
   return (
-    <div className={`${surfaceClassName()} relative overflow-hidden p-4 sm:p-5`}>
-      <div className={`pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b ${accentTone} opacity-70`} />
+    <div className={`${surfaceClassName()} relative overflow-hidden p-4`}>
+      <div className={`pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b ${accentTone} opacity-50`} />
       <div className="relative">
         <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">{label}</div>
-        <div className="mt-3 font-mono text-2xl font-semibold text-white sm:text-[30px]">{value}</div>
+        <div className="mt-2 font-mono text-[26px] font-semibold text-white">{value}</div>
         {footnote ? <div className="mt-2 text-xs text-slate-400">{footnote}</div> : null}
       </div>
     </div>
@@ -185,7 +185,7 @@ export function TerminalSurface({
 }) {
   return (
     <section className={`${surfaceClassName()} overflow-hidden ${className}`.trim()}>
-      <div className="border-b border-white/6 px-4 py-4 sm:px-5">
+      <div className="border-b border-white/6 px-4 py-3 sm:px-5">
         <SectionHeader title={title} detail={detail} icon={icon} />
       </div>
       <div className="px-4 py-4 sm:px-5">{children}</div>
@@ -297,17 +297,17 @@ export function TerminalShell({
 
   return (
     <main className="min-h-screen bg-[#04070d] text-slate-100">
-      <div className="mx-auto grid min-h-screen max-w-[1760px] grid-cols-1 xl:grid-cols-[280px_minmax(0,1fr)]">
+      <div className="mx-auto grid min-h-screen max-w-[1680px] grid-cols-1 xl:grid-cols-[260px_minmax(0,1fr)]">
         <aside className="hidden border-r border-white/6 xl:block">
-          <div className="sticky top-0 flex h-screen flex-col gap-4 px-5 py-5">
+          <div className="sticky top-0 flex h-screen flex-col gap-3 px-4 py-4">
             <div className={`${surfaceClassName()} p-4`}>
               <div className="flex items-center gap-3">
-                <div className="grid size-12 place-items-center rounded-2xl bg-[linear-gradient(180deg,rgba(34,211,238,0.18),rgba(34,211,238,0.06))] font-mono text-base font-black text-cyan-100 shadow-[0_0_32px_rgba(34,211,238,0.18)]">
+                <div className="grid size-11 place-items-center rounded-2xl bg-[linear-gradient(180deg,rgba(34,211,238,0.18),rgba(34,211,238,0.06))] font-mono text-base font-black text-cyan-100 shadow-[0_0_24px_rgba(34,211,238,0.12)]">
                   FX
                 </div>
                 <div className="min-w-0">
                   <div className="truncate text-base font-semibold text-white">Forex AI Radar</div>
-                  <div className="text-xs text-slate-500">Private execution terminal</div>
+                  <div className="text-xs text-slate-500">Execution terminal</div>
                 </div>
               </div>
             </div>
@@ -317,7 +317,7 @@ export function TerminalShell({
                 const active = pathname === item.href;
                 return (
                   <Link
-                    className={`rounded-2xl border px-3 py-3 transition ${
+                    className={`rounded-2xl border px-3 py-2.5 transition ${
                       active
                         ? "border-cyan-300/30 bg-cyan-300/[0.1]"
                         : "border-white/8 bg-white/[0.02] hover:border-white/14 hover:bg-white/[0.04]"
@@ -384,12 +384,12 @@ export function TerminalShell({
 
         <section className="min-w-0">
           <header className="sticky top-0 z-30 border-b border-white/6 bg-[rgba(4,7,13,0.86)] backdrop-blur-xl">
-            <div className="mx-auto flex w-full max-w-[1760px] flex-col gap-4 px-4 py-4 sm:px-5 xl:px-8">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-3 px-4 py-4 sm:px-5 xl:px-7">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div className="min-w-0">
                   <PageEyebrow>Live market workspace</PageEyebrow>
                   <div className="mt-3 flex flex-wrap items-center gap-3">
-                    <h1 className="text-[28px] font-semibold tracking-tight text-white sm:text-[34px]">{title}</h1>
+                    <h1 className="text-[26px] font-semibold tracking-tight text-white sm:text-[32px]">{title}</h1>
                     <MetricPill label="Updated" value={now} />
                   </div>
                   <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">{subtitle}</p>
@@ -451,7 +451,7 @@ export function TerminalShell({
             </div>
           </header>
 
-          <div className="mx-auto w-full max-w-[1760px] px-4 pb-24 pt-4 sm:px-5 xl:px-8 xl:pb-8">
+          <div className="mx-auto w-full max-w-[1680px] px-4 pb-24 pt-4 sm:px-5 xl:px-7 xl:pb-8">
             <div className={density === "comfortable" ? "space-y-5" : "space-y-4"}>{children}</div>
           </div>
         </section>
