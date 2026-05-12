@@ -21,10 +21,34 @@ def rsi_bucket(rsi: float) -> str:
     return "MID"
 
 
+def adx_bucket(adx: float) -> str:
+    if adx < 18:
+        return "WEAK"
+    if adx < 25:
+        return "MODERATE"
+    return "STRONG"
+
+
+def atr_ratio_bucket(atr_ratio: float) -> str:
+    if atr_ratio < 0.0005:
+        return "TIGHT"
+    if atr_ratio < 0.0015:
+        return "NORMAL"
+    return "EXPANDED"
+
+
 def bounded_bias(values: list[int], min_samples: int, max_weight: float) -> float:
     if len(values) < min_samples:
         return 0.0
     return round(max(-max_weight, min(max_weight, mean(values) * max_weight)), 2)
+
+
+def empirical_confidence(rows: list[dict[str, Any]]) -> float:
+    finished = [row for row in rows if row["trade_status"] in {"WIN", "LOSS"}]
+    if not finished:
+        return 0.5
+    wins = sum(1 for row in finished if row["trade_status"] == "WIN")
+    return wins / len(finished)
 
 
 def compute_learning_bias(
@@ -72,6 +96,86 @@ def compute_learning_bias(
         "setup_samples": len(setup_values),
         "recent_samples": len(recent_values),
         "block_trade": pair_block or setup_block or recent_block,
+    }
+
+
+def calibrate_confidence(
+    *,
+    pair: str,
+    signal: str,
+    setup_type: str,
+    trend_bias: str,
+    session: str,
+    current_rsi: float,
+    current_adx: float,
+    atr_ratio: float,
+    raw_confidence: float,
+) -> dict[str, float | int]:
+    if signal not in {"BUY", "SELL"} or setup_type == "NONE":
+        return {"confidence": round(raw_confidence, 2), "samples": 0}
+
+    logs = [
+        row
+        for row in get_feature_logs(limit=1500)
+        if row["trade_status"] in {"WIN", "LOSS"} and row["signal"] == signal
+    ]
+    if not logs:
+        return {"confidence": round(raw_confidence, 2), "samples": 0}
+
+    trend_prefix = trend_bias.split(" / ", 1)[0]
+    current_rsi_bucket = rsi_bucket(current_rsi)
+    current_adx_bucket = adx_bucket(current_adx)
+    current_atr_bucket = atr_ratio_bucket(atr_ratio)
+
+    candidate_groups = [
+        [
+            row
+            for row in logs
+            if row["pair"] == pair
+            and str(row.get("setup_type", "NONE")) == setup_type
+            and str(row.get("session", "")) == session
+        ],
+        [
+            row
+            for row in logs
+            if row["pair"] == pair and str(row.get("setup_type", "NONE")) == setup_type
+        ],
+        [
+            row
+            for row in logs
+            if str(row.get("setup_type", "NONE")) == setup_type
+            and str(row.get("trend_bias", "")).startswith(trend_prefix)
+            and str(row.get("session", "")) == session
+        ],
+        [
+            row
+            for row in logs
+            if str(row.get("setup_type", "NONE")) == setup_type
+            and rsi_bucket(float(row.get("rsi", 50))) == current_rsi_bucket
+            and adx_bucket(float(row.get("adx", 0))) == current_adx_bucket
+            and atr_ratio_bucket(float(row.get("atr_ratio", 0))) == current_atr_bucket
+        ],
+        [row for row in logs if str(row.get("setup_type", "NONE")) == setup_type],
+    ]
+
+    selected: list[dict[str, Any]] = []
+    for minimum, rows in zip([5, 6, 8, 10, 12], candidate_groups):
+        if len(rows) >= minimum:
+            selected = rows
+            break
+    if not selected:
+        selected = candidate_groups[-1]
+
+    sample_size = len(selected)
+    empirical = empirical_confidence(selected)
+    prior = min(max(raw_confidence, 0.2), 0.9)
+    blend = min(sample_size / 18, 1.0)
+    calibrated = (prior * (1 - blend)) + (empirical * blend)
+    calibrated = max(0.22, min(0.9, calibrated))
+
+    return {
+        "confidence": round(calibrated, 2),
+        "samples": sample_size,
     }
 
 

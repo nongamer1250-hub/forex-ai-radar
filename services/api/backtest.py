@@ -13,11 +13,15 @@ def resolve_outcome(signal: dict[str, Any], future_candles: list[Candle]) -> tup
 
     for candle in future_candles:
         if signal["signal"] == "BUY":
+            if candle.low <= signal["sl"] and candle.high >= signal["tp"]:
+                return "LOSS", signal["sl"]
             if candle.low <= signal["sl"]:
                 return "LOSS", signal["sl"]
             if candle.high >= signal["tp"]:
                 return "WIN", signal["tp"]
         else:
+            if candle.high >= signal["sl"] and candle.low <= signal["tp"]:
+                return "LOSS", signal["sl"]
             if candle.high >= signal["sl"]:
                 return "LOSS", signal["sl"]
             if candle.low <= signal["tp"]:
@@ -26,12 +30,12 @@ def resolve_outcome(signal: dict[str, Any], future_candles: list[Candle]) -> tup
     return "OPEN", future_candles[-1].close if future_candles else None
 
 
-def backtest_pair(pair: str, lookahead_bars: int = 48, max_samples: int = 40) -> dict[str, Any]:
-    candles_5m = fetch_candles(pair, interval="5m", range_="1mo")
-    candles_15m = fetch_candles(pair, interval="15m", range_="1mo")
+def backtest_pair(pair: str, lookahead_bars: int = 72, max_samples: int = 120) -> dict[str, Any]:
+    candles_5m = fetch_candles(pair, interval="5m", range_="60d")
+    candles_15m = fetch_candles(pair, interval="15m", range_="60d")
     results: list[dict[str, Any]] = []
 
-    step = 3
+    step = 4
     start_index = max(200, len(candles_5m) - (max_samples * step + lookahead_bars + 2))
     for index in range(start_index, len(candles_5m) - lookahead_bars, step):
         history_5m = candles_5m[: index + 1]
@@ -73,6 +77,7 @@ def backtest_pair(pair: str, lookahead_bars: int = 48, max_samples: int = 40) ->
         "win_rate": round(len(wins) / len(finished) * 100, 2) if finished else 0,
         "avg_score": round(mean(row["setup_score"] for row in results), 2) if results else 0,
         "avg_confidence": round(mean(row["confidence"] for row in results), 2) if results else 0,
+        "open_trades": sum(1 for row in results if row["outcome"] == "OPEN"),
     }
 
 
