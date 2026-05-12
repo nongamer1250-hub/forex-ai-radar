@@ -189,7 +189,11 @@ export async function login(access_key: string, user_name: string): Promise<Auth
 }
 
 export async function getCurrentSession(): Promise<AuthSession | null> {
-  return fetchJson<AuthSession | null>("/auth/session", null);
+  const session = await fetchJson<AuthSession | null>("/auth/session", null);
+  if (session?.session_token) {
+    setAuthToken(session.session_token, session.role !== "ADMIN");
+  }
+  return session;
 }
 
 export async function logout(): Promise<void> {

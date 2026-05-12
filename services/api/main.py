@@ -21,6 +21,7 @@ from auth import (
     logout_session,
     require_admin,
     require_session,
+    rotate_admin_session,
     revoke_user_key,
 )
 from backtest import run_backtest
@@ -131,7 +132,7 @@ def auth_login(request: Request, payload: dict[str, object] = Body(...)) -> dict
 
 @app.get("/auth/session")
 def auth_session(session: dict[str, object] = Depends(require_session)) -> dict[str, object]:
-    return current_session_payload(session)
+    return rotate_admin_session(session)
 
 
 @app.post("/auth/logout")

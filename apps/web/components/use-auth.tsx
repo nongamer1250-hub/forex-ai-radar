@@ -45,6 +45,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (!session || session.role !== "ADMIN") {
+      return;
+    }
+
+    const handlePageHide = () => {
+      const token = getAuthToken();
+      if (!token) {
+        return;
+      }
+      void fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || "https://api-production-4fa2.up.railway.app"}/auth/logout`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        keepalive: true,
+      }).catch(() => undefined);
+      clearAuthToken();
+    };
+
+    window.addEventListener("pagehide", handlePageHide);
+    return () => window.removeEventListener("pagehide", handlePageHide);
+  }, [session]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       session,

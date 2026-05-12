@@ -48,7 +48,7 @@ def mask_secret(value: str) -> str:
 def session_expiry_for_role(role: str) -> str:
     now = datetime.now(UTC)
     if role == "ADMIN":
-        return (now + timedelta(minutes=20)).isoformat()
+        return (now + timedelta(minutes=10)).isoformat()
     return (now + timedelta(days=7)).isoformat()
 
 
@@ -151,11 +151,28 @@ def is_admin_session(session: dict[str, Any]) -> bool:
 
 def current_session_payload(session: dict[str, Any]) -> dict[str, Any]:
     return {
+        "session_token": session.get("session_token"),
         "role": session.get("role"),
         "user_name": session.get("user_name"),
         "label": session.get("label") or ("Admin" if session.get("role") == "ADMIN" else "User"),
         "expires_at": session.get("expires_at"),
     }
+
+
+def rotate_admin_session(session: dict[str, Any]) -> dict[str, Any]:
+    if session.get("role") != "ADMIN":
+        return current_session_payload(session)
+
+    previous_token = str(session.get("session_token") or "")
+    rotated = create_auth_session(
+        key_id=str(session.get("key_id") or "admin_env_key"),
+        role="ADMIN",
+        user_name=str(session.get("user_name") or "admin"),
+        expires_at=session_expiry_for_role("ADMIN"),
+    )
+    if previous_token:
+        revoke_auth_session(previous_token)
+    return current_session_payload(rotated)
 
 
 def create_user_key(*, label: str) -> dict[str, Any]:
