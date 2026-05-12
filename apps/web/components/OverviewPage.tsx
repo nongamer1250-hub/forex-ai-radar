@@ -85,7 +85,7 @@ export function OverviewPage() {
       )}
 
       {/* Main Grid */}
-      <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-4">
           {/* Featured Signal + Chart */}
           <TerminalSurface title="Market Focus" detail={chartPair} icon={TrendingUp}>
@@ -93,21 +93,21 @@ export function OverviewPage() {
               {featuredSignal ? (
                 <div className="grid gap-4 lg:grid-cols-2">
                   {/* Signal Info */}
-                  <div className="rounded-lg border border-border bg-secondary/30 p-4">
+                  <div className="min-w-0 rounded-lg border border-border bg-secondary/30 p-4">
                     <div className="mb-4 flex items-start justify-between">
-                      <div>
+                      <div className="min-w-0">
                         <div className="font-mono text-xl font-bold text-foreground">{featuredSignal.pair}</div>
                         <div className="mt-0.5 text-xs text-muted-foreground">{featuredSignal.setup_type ?? featuredSignal.setup_quality}</div>
                       </div>
                       <MetricPill label="" value={featuredSignal.session} />
                     </div>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <div className="grid min-w-0 grid-cols-2 gap-2 xl:grid-cols-4">
                       <DataChip label="Entry" value={String(featuredSignal.entry)} />
                       <DataChip label="SL" value={String(featuredSignal.sl)} tone="border-danger/20 bg-danger-muted" />
                       <DataChip label="TP" value={String(featuredSignal.tp)} tone="border-success/20 bg-success-muted" />
                       <DataChip label="RR" value={String(featuredSignal.rr)} />
                     </div>
-                    <div className="mt-2 grid grid-cols-3 gap-2">
+                    <div className="mt-2 grid min-w-0 grid-cols-2 gap-2 2xl:grid-cols-3">
                       <DataChip label="Signal" value={featuredSignal.signal} tone="border-brand/20 bg-brand-muted" />
                       <DataChip label="State" value={featuredSignal.trade_status} />
                       <DataChip label="Trend" value={featuredSignal.trend_bias} />
@@ -115,13 +115,13 @@ export function OverviewPage() {
                   </div>
 
                   {/* Quality */}
-                  <div className="rounded-lg border border-border bg-secondary/30 p-4">
+                  <div className="min-w-0 rounded-lg border border-border bg-secondary/30 p-4">
                     <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
                       <Sparkles size={14} className="text-brand" />
                       Signal Quality
                     </div>
                     <ConfidenceMeter value={featuredSignal.confidence} />
-                    <div className="mt-3 grid grid-cols-3 gap-2">
+                    <div className="mt-3 grid min-w-0 grid-cols-2 gap-2 xl:grid-cols-3">
                       <DataChip label="Score" value={String(featuredSignal.setup_score)} />
                       <DataChip label="RSI" value={formatNumber(featuredSignal.rsi)} />
                       <DataChip label="Bias" value={String(featuredSignal.learning_bias ?? 0)} />
@@ -150,9 +150,9 @@ export function OverviewPage() {
               {topSignals.length ? (
                 <div className="grid gap-3 sm:grid-cols-2">
                   {topSignals.map((signal, index) => (
-                    <div key={signal.signal_id} className="rounded-lg border border-border bg-secondary/30 p-3.5">
+                    <div key={signal.signal_id} className="min-w-0 rounded-lg border border-border bg-secondary/30 p-3.5">
                       <div className="mb-2.5 flex items-start justify-between">
-                        <div>
+                        <div className="min-w-0">
                           <div className="font-mono text-sm font-bold text-foreground">{signal.pair}</div>
                           <div className="mt-0.5 text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
                             #{index + 1}
@@ -160,7 +160,7 @@ export function OverviewPage() {
                         </div>
                         <MetricPill label="" value={String(signal.rr) + " RR"} />
                       </div>
-                      <div className="mb-2.5 grid grid-cols-3 gap-1.5">
+                      <div className="mb-2.5 grid min-w-0 grid-cols-2 gap-1.5 xl:grid-cols-3">
                         <DataChip label="Signal" value={signal.signal} />
                         <DataChip label="Score" value={String(signal.setup_score)} />
                         <DataChip label="Status" value={signal.trade_status} />

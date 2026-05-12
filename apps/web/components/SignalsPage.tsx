@@ -65,7 +65,7 @@ export function SignalsPage() {
         <StatusBanner role="telegram" pair={telegramTrade.pair} status={telegramTrade.trade_status} />
       )}
 
-      <div className="grid gap-4 xl:grid-cols-[260px_1fr_280px]">
+      <div className="grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)_280px]">
         {/* Pair Matrix */}
         <TerminalSurface title="Pair Matrix" detail={`${signals.length}`} icon={Radio}>
           {signals.length ? (
@@ -94,9 +94,9 @@ export function SignalsPage() {
             {activeSignal ? (
               <div className="grid gap-4 lg:grid-cols-2">
                 {/* Signal Info */}
-                <div className="rounded-lg border border-border bg-secondary/30 p-4">
+                <div className="min-w-0 rounded-lg border border-border bg-secondary/30 p-4">
                   <div className="mb-3 flex items-start justify-between">
-                    <div>
+                    <div className="min-w-0">
                       <div className="font-mono text-xl font-bold text-foreground">{activeSignal.pair}</div>
                       <div className="mt-0.5 text-xs text-muted-foreground">{activeSignal.setup_type ?? activeSignal.setup_quality}</div>
                     </div>
@@ -104,13 +104,13 @@ export function SignalsPage() {
                       {activeSignal.signal}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <div className="grid min-w-0 grid-cols-2 gap-2 xl:grid-cols-4">
                     <DataChip label="Entry" value={String(activeSignal.entry)} />
                     <DataChip label="SL" value={String(activeSignal.sl)} tone="border-danger/20 bg-danger-muted" />
                     <DataChip label="TP" value={String(activeSignal.tp)} tone="border-success/20 bg-success-muted" />
                     <DataChip label="RR" value={String(activeSignal.rr)} />
                   </div>
-                  <div className="mt-2 grid grid-cols-3 gap-2">
+                  <div className="mt-2 grid min-w-0 grid-cols-2 gap-2 2xl:grid-cols-3">
                     <DataChip label="State" value={activeSignal.trade_status} />
                     <DataChip label="Trend" value={activeSignal.trend_bias} />
                     <DataChip label="Session" value={activeSignal.session} />
@@ -118,13 +118,13 @@ export function SignalsPage() {
                 </div>
 
                 {/* Diagnostics */}
-                <div className="rounded-lg border border-border bg-secondary/30 p-4">
+                <div className="min-w-0 rounded-lg border border-border bg-secondary/30 p-4">
                   <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
                     <Sparkles size={14} className="text-brand" />
                     Diagnostics
                   </div>
                   <ConfidenceMeter value={activeSignal.confidence} />
-                  <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="mt-3 grid min-w-0 grid-cols-2 gap-2">
                     <DataChip label="Score" value={String(activeSignal.setup_score)} />
                     <DataChip label="RSI" value={String(activeSignal.rsi)} />
                     <DataChip label="Trend" value={activeSignal.trend_bias} />
@@ -148,12 +148,12 @@ export function SignalsPage() {
             {/* Context + Telegram */}
             {activeSignal && (
               <div className="grid gap-4 lg:grid-cols-2">
-                <div className="rounded-lg border border-border bg-secondary/30 p-4">
+                <div className="min-w-0 rounded-lg border border-border bg-secondary/30 p-4">
                   <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
                     <BarChart3 size={14} className="text-brand" />
                     Context
                   </div>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <div className="grid min-w-0 grid-cols-2 gap-2 xl:grid-cols-4">
                     <DataChip label="Candle" value={String(activeSignal.candle_strength)} />
                     <DataChip label="ATR" value={String(activeSignal.atr)} />
                     <DataChip label="Bias" value={String(activeSignal.learning_bias ?? 0)} />
@@ -161,13 +161,13 @@ export function SignalsPage() {
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-border bg-card p-4">
+                <div className="min-w-0 rounded-lg border border-border bg-card p-4">
                   <div className="mb-2.5 text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Telegram Anchor</div>
                   {telegramTrade ? (
                     <div className="space-y-2.5">
                       <div className="flex items-start justify-between">
-                        <div>
-                          <div className="font-mono text-base font-bold text-foreground">{telegramTrade.pair}</div>
+                      <div className="min-w-0">
+                        <div className="font-mono text-base font-bold text-foreground">{telegramTrade.pair}</div>
                           <div className="text-xs text-muted-foreground">
                             {data?.activeTelegramTrade ? "Active" : "Last pushed"}
                           </div>
@@ -220,7 +220,7 @@ export function SignalsPage() {
                 {backlog.map((trade) => (
                   <div key={trade.signal_id} className="rounded-lg border border-border bg-secondary/30 p-3">
                     <div className="mb-2 flex items-start justify-between">
-                      <div>
+                      <div className="min-w-0">
                         <div className="font-mono text-sm font-bold text-foreground">{trade.pair}</div>
                         <div className="mt-0.5 text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
                           {trade.setup_type ?? trade.setup_quality}

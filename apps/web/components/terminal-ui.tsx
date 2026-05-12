@@ -94,12 +94,12 @@ export function SectionHeader({
 export function MetricPill({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (
     <div
-      className={`inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-xs ${
+      className={`inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-md border px-2 py-1 text-xs ${
         tone ?? "border-border bg-secondary text-muted-foreground"
       }`}
     >
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-mono font-medium text-foreground">{value}</span>
+      {label ? <span className="shrink-0 text-muted-foreground">{label}</span> : null}
+      <span className="min-w-0 truncate font-mono font-medium text-foreground">{value}</span>
     </div>
   );
 }
@@ -130,9 +130,9 @@ export function HeroMetric({
   };
 
   return (
-    <div className={`premium-card p-5 ${accentClasses[accent]}`}>
+    <div className={`premium-card min-w-0 p-5 ${accentClasses[accent]}`}>
       <div className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">{label}</div>
-      <div className={`mt-2 font-mono text-2xl font-bold tracking-tight ${valueClasses[accent]}`}>{value}</div>
+      <div className={`mt-2 min-w-0 break-words font-mono text-2xl font-bold tracking-tight ${valueClasses[accent]}`}>{value}</div>
       {footnote && <div className="mt-2 text-xs text-muted-foreground">{footnote}</div>}
     </div>
   );
@@ -194,9 +194,9 @@ export function DataChip({
   tone?: string;
 }) {
   return (
-    <div className={`rounded-lg border px-3 py-2 ${tone ?? "border-border bg-secondary/50"}`}>
-      <div className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{label}</div>
-      <div className="mt-0.5 font-mono text-sm font-medium text-foreground">{value}</div>
+    <div className={`min-w-0 overflow-hidden rounded-lg border px-3 py-2 ${tone ?? "border-border bg-secondary/50"}`}>
+      <div className="truncate text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{label}</div>
+      <div className="mt-0.5 min-w-0 break-words font-mono text-sm font-medium leading-snug text-foreground">{value}</div>
     </div>
   );
 }
@@ -216,7 +216,7 @@ export function SignalCard({
 
   return (
     <Wrapper
-      className={`group w-full rounded-lg border text-left transition-all ${
+      className={`group min-w-0 w-full rounded-lg border text-left transition-all ${
         active
           ? "border-brand/40 bg-brand-muted glow-gold"
           : "border-border bg-card card-hover"
@@ -224,9 +224,9 @@ export function SignalCard({
       {...(onClick ? { onClick, type: "button" as const } : {})}
     >
       <div className="mb-2.5 flex items-start justify-between gap-3">
-        <div>
-          <div className="font-mono text-sm font-bold text-foreground">{signal.pair}</div>
-          <div className="mt-0.5 text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
+        <div className="min-w-0">
+          <div className="truncate font-mono text-sm font-bold text-foreground">{signal.pair}</div>
+          <div className="mt-0.5 break-words text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
             {signal.setup_type ?? signal.setup_quality}
           </div>
         </div>
@@ -235,7 +235,7 @@ export function SignalCard({
         </span>
       </div>
 
-      <div className={`mb-2.5 grid ${compact ? "grid-cols-3" : "grid-cols-4"} gap-1.5`}>
+      <div className={`mb-2.5 grid ${compact ? "grid-cols-3" : "grid-cols-4"} gap-1.5 min-w-0`}>
         <DataChip label="RR" value={String(signal.rr)} />
         <DataChip label="Score" value={String(signal.setup_score)} />
         <DataChip label="RSI" value={formatNumber(signal.rsi)} />
