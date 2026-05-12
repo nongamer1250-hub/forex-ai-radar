@@ -25,7 +25,7 @@ export function AnalyticsPage() {
   return (
     <TerminalShell
       title="Analytics"
-      subtitle="Review system performance, pair quality, and the historical trade ledger through a denser analytical surface."
+      subtitle="Inspect execution quality through a dedicated analysis workspace with cleaner hierarchy, stronger contrast, and pair-level diagnostics."
       preferences={data?.preferences}
     >
       <MiniStatGrid>
@@ -35,8 +35,29 @@ export function AnalyticsPage() {
         <HeroMetric label="Best Pair" value={analytics?.best_pair ?? "N/A"} footnote="Highest current edge based on recorded outcomes." accent="amber" />
       </MiniStatGrid>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_360px]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_380px]">
         <div className="grid gap-4">
+          <TerminalSurface title="Performance Strip" detail="Live summary" icon={Trophy}>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-[22px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))] p-4">
+                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Profit Factor</div>
+                <div className="mt-2 font-mono text-2xl font-semibold text-white">{formatNumber(analytics?.profit_factor ?? 0)}</div>
+              </div>
+              <div className="rounded-[22px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))] p-4">
+                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Total Trades</div>
+                <div className="mt-2 font-mono text-2xl font-semibold text-white">{analytics?.total_trades ?? 0}</div>
+              </div>
+              <div className="rounded-[22px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))] p-4">
+                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Active Trades</div>
+                <div className="mt-2 font-mono text-2xl font-semibold text-white">{analytics?.active_trades ?? 0}</div>
+              </div>
+              <div className="rounded-[22px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))] p-4">
+                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Win Rate</div>
+                <div className="mt-2 font-mono text-2xl font-semibold text-white">{formatNumber(analytics?.win_rate ?? 0, "%")}</div>
+              </div>
+            </div>
+          </TerminalSurface>
+
           <TerminalSurface title="Trade Ledger" detail={`${trades.length} rows`} icon={Activity} className="overflow-hidden">
             {trades.length ? (
               <div className="overflow-x-auto">

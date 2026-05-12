@@ -299,9 +299,10 @@ export function TerminalShell({
 
   return (
     <main className="min-h-screen bg-[#04070d] text-slate-100">
-      <div className="mx-auto grid min-h-screen max-w-[1760px] grid-cols-1 xl:grid-cols-[282px_minmax(0,1fr)]">
-        <aside className="hidden border-r border-white/6 bg-[linear-gradient(180deg,rgba(3,7,12,0.94),rgba(2,5,11,0.98))] xl:block">
-          <div className="sticky top-0 flex h-screen flex-col gap-4 px-4 py-4">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_15%_10%,rgba(34,211,238,0.08),transparent_22%),radial-gradient(circle_at_85%_8%,rgba(16,185,129,0.06),transparent_20%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent_20%)]" />
+      <div className="mx-auto grid min-h-screen max-w-[1800px] grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)]">
+        <aside className="hidden bg-[linear-gradient(180deg,rgba(3,7,12,0.94),rgba(2,5,11,0.98))] xl:block">
+          <div className="sticky top-0 flex h-screen flex-col gap-4 px-4 py-5">
             <div className={`${surfaceClassName("relative overflow-hidden")} p-4`}>
               <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.16),transparent_60%)]" />
               <div className="flex items-center gap-3">
@@ -315,6 +316,7 @@ export function TerminalShell({
               </div>
             </div>
 
+            <div className="px-1 text-[11px] uppercase tracking-[0.22em] text-slate-600">Workspace</div>
             <nav className="grid gap-2">
               {navItems.map((item) => {
                 const active = pathname === item.href;
@@ -387,16 +389,16 @@ export function TerminalShell({
         </aside>
 
         <section className="min-w-0">
-          <header className="sticky top-0 z-30 border-b border-white/6 bg-[rgba(3,7,12,0.82)] backdrop-blur-2xl">
-            <div className="mx-auto flex w-full max-w-[1760px] flex-col gap-3 px-4 py-4 sm:px-5 xl:px-7">
+          <header className="sticky top-0 z-30 bg-[rgba(3,7,12,0.74)] backdrop-blur-2xl">
+            <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-3 px-4 py-4 sm:px-5 xl:px-7">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div className="min-w-0">
                   <PageEyebrow>Live market workspace</PageEyebrow>
-                  <div className="mt-3 flex flex-wrap items-center gap-3">
-                    <h1 className="text-[28px] font-semibold tracking-tight text-white sm:text-[34px]">{title}</h1>
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <h1 className="text-[30px] font-semibold tracking-tight text-white sm:text-[38px]">{title}</h1>
                     <MetricPill label="Updated" value={now} />
                   </div>
-                  <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">{subtitle}</p>
+                  <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">{subtitle}</p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
@@ -416,7 +418,7 @@ export function TerminalShell({
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 rounded-[24px] border border-white/6 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] p-2">
                 <MetricPill label="Infra" value="Railway + Vercel" />
                 <MetricPill label="Feed" value="Yahoo Finance" tone="border-emerald-300/20 bg-emerald-300/10 text-emerald-100" />
                 {preferences ? (
@@ -455,7 +457,7 @@ export function TerminalShell({
             </div>
           </header>
 
-          <div className="mx-auto w-full max-w-[1760px] px-4 pb-24 pt-4 sm:px-5 xl:px-7 xl:pb-8">
+          <div className="mx-auto w-full max-w-[1800px] px-4 pb-24 pt-5 sm:px-5 xl:px-7 xl:pb-8">
             <div className={density === "comfortable" ? "space-y-5" : "space-y-4"}>{children}</div>
           </div>
         </section>

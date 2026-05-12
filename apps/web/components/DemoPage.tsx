@@ -62,7 +62,7 @@ export function DemoPage() {
   return (
     <TerminalShell
       title="Demo Trading"
-      subtitle="Run paper trades against the live signal engine without touching real capital. Balance, equity, and settlement update automatically."
+      subtitle="Use a cleaner paper-trading desk with an auto-pilot lane, manual override, and a dedicated capital view instead of a plain form-heavy page."
       preferences={data?.preferences}
     >
       <MiniStatGrid>
@@ -77,31 +77,42 @@ export function DemoPage() {
         />
       </MiniStatGrid>
 
-      <div className="grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)]">
-        <TerminalSurface title="Auto Demo Pilot" icon={Bot}>
-          <div className="grid gap-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <DataChip label="Mode" value={preferences?.demo_auto_trade_enabled ? "AUTO" : "MANUAL"} />
-              <DataChip label="Units" value={String(preferences?.demo_auto_trade_units ?? 10000)} />
+      <div className="grid gap-4 xl:grid-cols-[380px_minmax(0,1fr)]">
+        <div className="grid content-start gap-4">
+          <TerminalSurface title="Auto Demo Pilot" icon={Bot}>
+            <div className="grid gap-4">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                <DataChip label="Mode" value={preferences?.demo_auto_trade_enabled ? "AUTO" : "MANUAL"} />
+                <DataChip label="Units" value={String(preferences?.demo_auto_trade_units ?? 10000)} />
+              </div>
+              <div className="rounded-[22px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.018))] px-4 py-4 text-sm leading-6 text-slate-300">
+                {autoTradeStatus
+                  ? `Last auto action: ${autoTradeStatus.replaceAll("_", " ")}`
+                  : "Enable auto demo in Settings to let the demo account pick the best live signal when no paper trade is open."}
+              </div>
+              <button
+                className="rounded-2xl border border-cyan-300/25 bg-cyan-300/12 px-4 py-3 text-sm font-medium text-cyan-100 transition hover:bg-cyan-300/20 disabled:opacity-60"
+                disabled={isPending}
+                onClick={() => void runAutoTrade()}
+                type="button"
+              >
+                Run auto demo now
+              </button>
             </div>
-            <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
-              {autoTradeStatus
-                ? `Last auto action: ${autoTradeStatus.replaceAll("_", " ")}`
-                : "Enable auto demo in Settings to let the demo account pick the best live signal when no paper trade is open."}
-            </div>
-            <button
-              className="rounded-2xl border border-cyan-300/25 bg-cyan-300/12 px-4 py-3 text-sm font-medium text-cyan-100 transition hover:bg-cyan-300/20 disabled:opacity-60"
-              disabled={isPending}
-              onClick={() => void runAutoTrade()}
-              type="button"
-            >
-              Run auto demo now
-            </button>
-          </div>
-        </TerminalSurface>
+          </TerminalSurface>
 
-        <TerminalSurface title="Place Demo Trade" icon={Wallet}>
-          <div className="grid gap-4">
+          <TerminalSurface title="Capital Snapshot" icon={Wallet}>
+            <div className="grid gap-3">
+              <DataChip label="Open Positions" value={String(account?.open_positions ?? 0)} />
+              <DataChip label="Realized Capital" value={`$${formatNumber(account?.balance ?? 10000)}`} />
+              <DataChip label="Live Equity" value={`$${formatNumber(account?.equity ?? 10000)}`} />
+            </div>
+          </TerminalSurface>
+        </div>
+
+        <div className="grid gap-4">
+          <TerminalSurface title="Place Demo Trade" icon={Wallet}>
+            <div className="grid gap-4">
             <div>
               <label className="mb-2 block text-sm text-slate-400">Use live signal</label>
               <select
@@ -221,49 +232,50 @@ export function DemoPage() {
                 Reset demo account
               </button>
             </div>
-          </div>
-        </TerminalSurface>
-
-        <TerminalSurface title="Paper Trade Ledger" detail={`${trades.length} rows`} icon={Wallet} className="overflow-hidden">
-          {trades.length ? (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px] text-left text-sm">
-                <thead className="border-b border-white/6 text-[11px] uppercase tracking-[0.18em] text-slate-500">
-                  <tr>
-                    {["Pair", "Signal", "Units", "Entry", "SL", "TP", "Status", "Price", "PnL", "Opened"].map((header) => (
-                      <th className="px-0 py-3 first:pr-4 last:pl-4" key={header}>
-                        {header}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {trades.map((trade) => {
-                    const pnl = trade.status === "OPEN" ? trade.unrealized_pnl ?? 0 : trade.realized_pnl ?? 0;
-                    return (
-                      <tr className="border-b border-white/6 last:border-b-0" key={trade.demo_trade_id}>
-                        <td className="py-3 pr-4 font-mono text-white">{trade.pair}</td>
-                        <td className="py-3">
-                          <span className={`rounded-full border px-2.5 py-1 font-mono text-[11px] ${signalTone(trade.signal)}`}>{trade.signal}</span>
-                        </td>
-                        <td className="py-3 font-mono text-slate-200">{trade.units}</td>
-                        <td className="py-3 font-mono text-slate-200">{trade.entry}</td>
-                        <td className="py-3 font-mono text-rose-200">{trade.sl}</td>
-                        <td className="py-3 font-mono text-emerald-200">{trade.tp}</td>
-                        <td className={`py-3 font-mono ${statusTone(trade.status)}`}>{trade.status}</td>
-                        <td className="py-3 font-mono text-slate-200">{trade.current_price ?? trade.close_price ?? "-"}</td>
-                        <td className={`py-3 font-mono ${pnl >= 0 ? "text-emerald-300" : "text-rose-300"}`}>${formatNumber(pnl)}</td>
-                        <td className="py-3 pl-4 font-mono text-slate-500">{formatDateTime(trade.opened_at)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
             </div>
-          ) : (
-            <EmptyState title="No demo trades yet" body="Create a paper trade from a live signal or enter one manually to start tracking performance." />
-          )}
-        </TerminalSurface>
+          </TerminalSurface>
+
+          <TerminalSurface title="Paper Trade Ledger" detail={`${trades.length} rows`} icon={Wallet} className="overflow-hidden">
+            {trades.length ? (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[980px] text-left text-sm">
+                  <thead className="border-b border-white/6 text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                    <tr>
+                      {["Pair", "Signal", "Units", "Entry", "SL", "TP", "Status", "Price", "PnL", "Opened"].map((header) => (
+                        <th className="px-0 py-3 first:pr-4 last:pl-4" key={header}>
+                          {header}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {trades.map((trade) => {
+                      const pnl = trade.status === "OPEN" ? trade.unrealized_pnl ?? 0 : trade.realized_pnl ?? 0;
+                      return (
+                        <tr className="border-b border-white/6 last:border-b-0" key={trade.demo_trade_id}>
+                          <td className="py-3 pr-4 font-mono text-white">{trade.pair}</td>
+                          <td className="py-3">
+                            <span className={`rounded-full border px-2.5 py-1 font-mono text-[11px] ${signalTone(trade.signal)}`}>{trade.signal}</span>
+                          </td>
+                          <td className="py-3 font-mono text-slate-200">{trade.units}</td>
+                          <td className="py-3 font-mono text-slate-200">{trade.entry}</td>
+                          <td className="py-3 font-mono text-rose-200">{trade.sl}</td>
+                          <td className="py-3 font-mono text-emerald-200">{trade.tp}</td>
+                          <td className={`py-3 font-mono ${statusTone(trade.status)}`}>{trade.status}</td>
+                          <td className="py-3 font-mono text-slate-200">{trade.current_price ?? trade.close_price ?? "-"}</td>
+                          <td className={`py-3 font-mono ${pnl >= 0 ? "text-emerald-300" : "text-rose-300"}`}>${formatNumber(pnl)}</td>
+                          <td className="py-3 pl-4 font-mono text-slate-500">{formatDateTime(trade.opened_at)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <EmptyState title="No demo trades yet" body="Create a paper trade from a live signal or enter one manually to start tracking performance." />
+            )}
+          </TerminalSurface>
+        </div>
       </div>
     </TerminalShell>
   );
