@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 
 function contentSecurityPolicy(request: NextRequest, nonce: string): string {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-production-76b1.up.railway.app";
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || "https://api-production-4fa2.up.railway.app";
   const requestOrigin = request.nextUrl.origin;
 
   return [
