@@ -68,10 +68,11 @@ export function TradingViewWidget({ symbol }: TradingViewWidgetProps) {
       const mountNode = document.createElement("div");
       mountNode.id = widgetId;
       mountNode.className = "h-full w-full";
+      mountNode.style.height = "100%";
+      mountNode.style.width = "100%";
       currentContainer.appendChild(mountNode);
 
       new window.TradingView.widget({
-        autosize: true,
         symbol: `FX:${symbol}`,
         interval: "15",
         timezone: "Etc/UTC",
@@ -84,6 +85,8 @@ export function TradingViewWidget({ symbol }: TradingViewWidgetProps) {
         studies: ["STD;RSI"],
         support_host: "https://www.tradingview.com",
         container_id: widgetId,
+        width: "100%",
+        height: "100%",
       });
     }
 
@@ -96,7 +99,7 @@ export function TradingViewWidget({ symbol }: TradingViewWidgetProps) {
   }, [symbol, widgetId]);
 
   return (
-    <div className="h-full min-h-[440px] overflow-hidden rounded-lg bg-[#070b12]">
+    <div className="relative h-[360px] overflow-hidden rounded-lg bg-[#070b12] sm:h-[420px] xl:h-[520px]">
       <div ref={containerRef} className="tradingview-widget-container h-full w-full">
         <div className="tradingview-widget-container__widget h-full w-full" />
       </div>
