@@ -21,10 +21,10 @@ import { STRATEGY_PAIRS } from "@/lib/constants";
 export function DemoPage() {
   const { data } = useDashboardData();
   const { account, trades, submitTrade, resetAccount, runAutoTrade, autoTradeStatus, isPending } = useDemoData();
-  const liveSignals = data?.signals.filter((item) => item.signal === "BUY" || item.signal === "SELL") ?? [];
+  const liveSignals = data?.signals.filter((s) => s.signal === "BUY" || s.signal === "SELL") ?? [];
   const [selectedSignalId, setSelectedSignalId] = useState("");
   const selectedSignal = useMemo(
-    () => liveSignals.find((signal) => signal.signal_id === selectedSignalId) ?? liveSignals[0] ?? null,
+    () => liveSignals.find((s) => s.signal_id === selectedSignalId) ?? liveSignals[0] ?? null,
     [liveSignals, selectedSignalId],
   );
   const [units, setUnits] = useState(10000);
@@ -36,22 +36,16 @@ export function DemoPage() {
   const preferences = data?.preferences;
 
   useEffect(() => {
-    if (!preferences?.demo_auto_trade_enabled) {
-      return;
-    }
+    if (!preferences?.demo_auto_trade_enabled) return;
     void runAutoTrade();
   }, [preferences?.demo_auto_trade_enabled, data?.signals, runAutoTrade]);
 
   useEffect(() => {
-    if (!selectedSignalId && liveSignals[0]) {
-      setSelectedSignalId(liveSignals[0].signal_id);
-    }
+    if (!selectedSignalId && liveSignals[0]) setSelectedSignalId(liveSignals[0].signal_id);
   }, [liveSignals, selectedSignalId]);
 
   useEffect(() => {
-    if (!selectedSignal) {
-      return;
-    }
+    if (!selectedSignal) return;
     setManualPair(selectedSignal.pair);
     setManualSignal(selectedSignal.signal === "SELL" ? "SELL" : "BUY");
     setManualEntry(selectedSignal.entry);
@@ -62,71 +56,71 @@ export function DemoPage() {
   return (
     <TerminalShell
       title="Demo Trading"
-      subtitle="Paper trading desk with auto-pilot capability and manual override controls."
+      subtitle="Paper trading desk with auto-pilot and manual override."
       preferences={data?.preferences}
     >
-      {/* Hero Metrics */}
+      {/* Hero */}
       <MiniStatGrid>
-        <HeroMetric label="Start Balance" value={`$${formatNumber(account?.start_balance ?? 10000)}`} footnote="Initial paper capital." />
-        <HeroMetric label="Balance" value={`$${formatNumber(account?.balance ?? 10000)}`} footnote="After closed PnL." accent="emerald" />
-        <HeroMetric label="Equity" value={`$${formatNumber(account?.equity ?? 10000)}`} footnote="Including open PnL." />
+        <HeroMetric label="Start Balance" value={`$${formatNumber(account?.start_balance ?? 10000)}`} footnote="Initial capital" />
+        <HeroMetric label="Balance" value={`$${formatNumber(account?.balance ?? 10000)}`} footnote="After closed PnL" accent="success" />
+        <HeroMetric label="Equity" value={`$${formatNumber(account?.equity ?? 10000)}`} footnote="Including open PnL" />
         <HeroMetric
           label="Unrealized PnL"
           value={`$${formatNumber(account?.unrealized_pnl ?? 0)}`}
-          footnote={`${account?.open_positions ?? 0} open positions`}
-          accent={(account?.unrealized_pnl ?? 0) >= 0 ? "emerald" : "rose"}
+          footnote={`${account?.open_positions ?? 0} open`}
+          accent={(account?.unrealized_pnl ?? 0) >= 0 ? "success" : "danger"}
         />
       </MiniStatGrid>
 
-      <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
+      <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
         {/* Sidebar */}
         <div className="space-y-4">
           <TerminalSurface title="Auto Pilot" icon={Bot}>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
                 <DataChip label="Mode" value={preferences?.demo_auto_trade_enabled ? "AUTO" : "MANUAL"} />
                 <DataChip label="Units" value={String(preferences?.demo_auto_trade_units ?? 10000)} />
               </div>
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 text-sm leading-relaxed text-zinc-400">
+              <div className="rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
                 {autoTradeStatus
-                  ? `Last action: ${autoTradeStatus.replaceAll("_", " ")}`
-                  : "Enable auto demo in Settings to let the system pick signals automatically."}
+                  ? `Last: ${autoTradeStatus.replaceAll("_", " ")}`
+                  : "Enable auto demo in Settings to pick signals automatically."}
               </div>
               <button
-                className="w-full rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-sm font-medium text-cyan-400 transition-all hover:bg-cyan-500/20 disabled:opacity-50"
+                className="w-full rounded-lg border border-brand/30 bg-brand-muted px-4 py-2.5 text-sm font-medium text-brand transition-all hover:bg-brand/20 disabled:opacity-50"
                 disabled={isPending}
                 onClick={() => void runAutoTrade()}
                 type="button"
               >
-                Run auto demo now
+                Run auto now
               </button>
             </div>
           </TerminalSurface>
 
-          <TerminalSurface title="Capital Snapshot" icon={Wallet}>
-            <div className="space-y-3">
-              <DataChip label="Open Positions" value={String(account?.open_positions ?? 0)} />
+          <TerminalSurface title="Capital" icon={Wallet}>
+            <div className="space-y-2.5">
+              <DataChip label="Open" value={String(account?.open_positions ?? 0)} />
               <DataChip label="Realized" value={`$${formatNumber(account?.balance ?? 10000)}`} />
               <DataChip label="Equity" value={`$${formatNumber(account?.equity ?? 10000)}`} />
             </div>
           </TerminalSurface>
         </div>
 
-        {/* Main Content */}
+        {/* Main */}
         <div className="space-y-4">
           <TerminalSurface title="Place Demo Trade" icon={Wallet}>
             <div className="space-y-4">
               <div>
-                <label className="mb-2 block text-sm text-zinc-400">Use live signal</label>
+                <label className="mb-1.5 block text-xs font-medium text-foreground">Use live signal</label>
                 <select
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-sm text-zinc-100"
-                  onChange={(event) => setSelectedSignalId(event.target.value)}
+                  className="w-full rounded-lg border border-border bg-secondary px-3 py-2.5 text-sm text-foreground"
+                  onChange={(e) => setSelectedSignalId(e.target.value)}
                   value={selectedSignal?.signal_id ?? ""}
                 >
                   {!liveSignals.length && <option value="">No live signals</option>}
-                  {liveSignals.map((signal) => (
-                    <option key={signal.signal_id} value={signal.signal_id}>
-                      {signal.pair} | {signal.signal} | {Math.round(signal.confidence * 100)}%
+                  {liveSignals.map((s) => (
+                    <option key={s.signal_id} value={s.signal_id}>
+                      {s.pair} | {s.signal} | {Math.round(s.confidence * 100)}%
                     </option>
                   ))}
                 </select>
@@ -134,22 +128,22 @@ export function DemoPage() {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="mb-2 block text-sm text-zinc-400">Pair</label>
+                  <label className="mb-1.5 block text-xs font-medium text-foreground">Pair</label>
                   <select
-                    className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-sm text-zinc-100"
-                    onChange={(event) => setManualPair(event.target.value)}
+                    className="w-full rounded-lg border border-border bg-secondary px-3 py-2.5 text-sm text-foreground"
+                    onChange={(e) => setManualPair(e.target.value)}
                     value={manualPair}
                   >
-                    {STRATEGY_PAIRS.map((pair) => (
-                      <option key={pair} value={pair}>{pair}</option>
+                    {STRATEGY_PAIRS.map((p) => (
+                      <option key={p} value={p}>{p}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm text-zinc-400">Side</label>
+                  <label className="mb-1.5 block text-xs font-medium text-foreground">Side</label>
                   <select
-                    className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-sm text-zinc-100"
-                    onChange={(event) => setManualSignal(event.target.value as "BUY" | "SELL")}
+                    className="w-full rounded-lg border border-border bg-secondary px-3 py-2.5 text-sm text-foreground"
+                    onChange={(e) => setManualSignal(e.target.value as "BUY" | "SELL")}
                     value={manualSignal}
                   >
                     <option value="BUY">BUY</option>
@@ -159,11 +153,11 @@ export function DemoPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm text-zinc-400">Units</label>
+                <label className="mb-1.5 block text-xs font-medium text-foreground">Units</label>
                 <input
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-sm text-zinc-100"
+                  className="w-full rounded-lg border border-border bg-secondary px-3 py-2.5 text-sm text-foreground"
                   min={100}
-                  onChange={(event) => setUnits(Number(event.target.value))}
+                  onChange={(e) => setUnits(Number(e.target.value))}
                   step={100}
                   type="number"
                   value={units}
@@ -172,28 +166,28 @@ export function DemoPage() {
 
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>
-                  <label className="mb-2 block text-sm text-zinc-400">Entry</label>
+                  <label className="mb-1.5 block text-xs font-medium text-foreground">Entry</label>
                   <input
-                    className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-sm text-zinc-100"
-                    onChange={(event) => setManualEntry(Number(event.target.value))}
+                    className="w-full rounded-lg border border-border bg-secondary px-3 py-2.5 text-sm text-foreground"
+                    onChange={(e) => setManualEntry(Number(e.target.value))}
                     type="number"
                     value={manualEntry}
                   />
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm text-zinc-400">SL</label>
+                  <label className="mb-1.5 block text-xs font-medium text-foreground">SL</label>
                   <input
-                    className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-sm text-zinc-100"
-                    onChange={(event) => setManualSl(Number(event.target.value))}
+                    className="w-full rounded-lg border border-border bg-secondary px-3 py-2.5 text-sm text-foreground"
+                    onChange={(e) => setManualSl(Number(e.target.value))}
                     type="number"
                     value={manualSl}
                   />
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm text-zinc-400">TP</label>
+                  <label className="mb-1.5 block text-xs font-medium text-foreground">TP</label>
                   <input
-                    className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-sm text-zinc-100"
-                    onChange={(event) => setManualTp(Number(event.target.value))}
+                    className="w-full rounded-lg border border-border bg-secondary px-3 py-2.5 text-sm text-foreground"
+                    onChange={(e) => setManualTp(Number(e.target.value))}
                     type="number"
                     value={manualTp}
                   />
@@ -202,7 +196,7 @@ export function DemoPage() {
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <button
-                  className="rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 px-4 py-3 text-sm font-semibold text-zinc-900 shadow-lg shadow-cyan-500/20 disabled:opacity-50"
+                  className="btn-primary rounded-lg px-4 py-2.5 text-sm disabled:opacity-50"
                   disabled={isPending}
                   onClick={() => {
                     submitTrade({
@@ -221,10 +215,10 @@ export function DemoPage() {
                   }}
                   type="button"
                 >
-                  Place demo trade
+                  Place trade
                 </button>
                 <button
-                  className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-400 disabled:opacity-50"
+                  className="rounded-lg border border-danger/30 bg-danger-muted px-4 py-2.5 text-sm font-medium text-danger disabled:opacity-50"
                   disabled={isPending}
                   onClick={resetAccount}
                   type="button"
@@ -236,45 +230,45 @@ export function DemoPage() {
           </TerminalSurface>
 
           {/* Trade Ledger */}
-          <TerminalSurface title="Paper Trade Ledger" detail={`${trades.length} entries`} icon={Wallet} className="overflow-hidden">
+          <TerminalSurface title="Paper Ledger" detail={`${trades.length} entries`} icon={Wallet} noPadding>
             {trades.length ? (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[900px] text-left text-sm">
-                  <thead className="border-b border-zinc-800 text-[10px] font-medium uppercase tracking-wider text-zinc-500">
+                <table className="w-full min-w-[800px] text-left text-sm">
+                  <thead className="border-b border-border bg-secondary/30 text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
                     <tr>
-                      <th className="pb-3 pr-4">Pair</th>
-                      <th className="pb-3 pr-4">Signal</th>
-                      <th className="pb-3 pr-4">Units</th>
-                      <th className="pb-3 pr-4">Entry</th>
-                      <th className="pb-3 pr-4">SL</th>
-                      <th className="pb-3 pr-4">TP</th>
-                      <th className="pb-3 pr-4">Status</th>
-                      <th className="pb-3 pr-4">Price</th>
-                      <th className="pb-3 pr-4">PnL</th>
-                      <th className="pb-3">Opened</th>
+                      <th className="px-4 py-2.5">Pair</th>
+                      <th className="px-4 py-2.5">Signal</th>
+                      <th className="px-4 py-2.5">Units</th>
+                      <th className="px-4 py-2.5">Entry</th>
+                      <th className="px-4 py-2.5">SL</th>
+                      <th className="px-4 py-2.5">TP</th>
+                      <th className="px-4 py-2.5">Status</th>
+                      <th className="px-4 py-2.5">Price</th>
+                      <th className="px-4 py-2.5">PnL</th>
+                      <th className="px-4 py-2.5">Opened</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-800/60">
-                    {trades.map((trade) => {
-                      const pnl = trade.status === "OPEN" ? trade.unrealized_pnl ?? 0 : trade.realized_pnl ?? 0;
+                  <tbody className="divide-y divide-border/50">
+                    {trades.map((t) => {
+                      const pnl = t.status === "OPEN" ? t.unrealized_pnl ?? 0 : t.realized_pnl ?? 0;
                       return (
-                        <tr key={trade.demo_trade_id} className="hover:bg-zinc-800/20 transition-colors">
-                          <td className="py-3 pr-4 font-mono font-medium text-zinc-100">{trade.pair}</td>
-                          <td className="py-3 pr-4">
-                            <span className={`rounded-full border px-2 py-0.5 font-mono text-[10px] font-medium ${signalTone(trade.signal)}`}>
-                              {trade.signal}
+                        <tr key={t.demo_trade_id} className="transition-colors hover:bg-secondary/30">
+                          <td className="px-4 py-3 font-mono font-semibold text-foreground">{t.pair}</td>
+                          <td className="px-4 py-3">
+                            <span className={`rounded border px-1.5 py-0.5 font-mono text-[10px] font-semibold ${signalTone(t.signal)}`}>
+                              {t.signal}
                             </span>
                           </td>
-                          <td className="py-3 pr-4 font-mono text-zinc-300">{trade.units}</td>
-                          <td className="py-3 pr-4 font-mono text-zinc-300">{trade.entry}</td>
-                          <td className="py-3 pr-4 font-mono text-rose-400">{trade.sl}</td>
-                          <td className="py-3 pr-4 font-mono text-emerald-400">{trade.tp}</td>
-                          <td className={`py-3 pr-4 font-mono ${statusTone(trade.status)}`}>{trade.status}</td>
-                          <td className="py-3 pr-4 font-mono text-zinc-300">{trade.current_price ?? trade.close_price ?? "-"}</td>
-                          <td className={`py-3 pr-4 font-mono ${pnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                          <td className="px-4 py-3 font-mono text-foreground">{t.units}</td>
+                          <td className="px-4 py-3 font-mono text-foreground">{t.entry}</td>
+                          <td className="px-4 py-3 font-mono text-danger">{t.sl}</td>
+                          <td className="px-4 py-3 font-mono text-success">{t.tp}</td>
+                          <td className={`px-4 py-3 font-mono font-medium ${statusTone(t.status)}`}>{t.status}</td>
+                          <td className="px-4 py-3 font-mono text-foreground">{t.current_price ?? t.close_price ?? "-"}</td>
+                          <td className={`px-4 py-3 font-mono font-medium ${pnl >= 0 ? "text-success" : "text-danger"}`}>
                             ${formatNumber(pnl)}
                           </td>
-                          <td className="py-3 font-mono text-zinc-500">{formatDateTime(trade.opened_at)}</td>
+                          <td className="px-4 py-3 font-mono text-muted-foreground">{formatDateTime(t.opened_at)}</td>
                         </tr>
                       );
                     })}
@@ -282,7 +276,9 @@ export function DemoPage() {
                 </table>
               </div>
             ) : (
-              <EmptyState title="No demo trades" body="Place a paper trade to start tracking." />
+              <div className="p-4">
+                <EmptyState title="No demo trades" body="Place a paper trade to start tracking." />
+              </div>
             )}
           </TerminalSurface>
         </div>
