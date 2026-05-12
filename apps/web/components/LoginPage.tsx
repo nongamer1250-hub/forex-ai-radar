@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, BarChart3, Lock, Shield, TrendingUp, Zap } from "lucide-react";
+import { Activity, BarChart3, Key, Lock, Shield, TrendingUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -10,25 +10,25 @@ import { ADMIN_ROUTE } from "@/lib/constants";
 const features = [
   {
     icon: TrendingUp,
-    title: "AI-Powered Signals",
-    description: "Real-time forex analysis with machine learning confidence scoring.",
+    title: "AI Signals",
+    description: "Real-time forex analysis with ML confidence scoring.",
   },
   {
     icon: Shield,
     title: "Secure Access",
-    description: "One key per user. Revocation invalidates all active sessions.",
+    description: "One key per user with instant revocation.",
   },
   {
     icon: BarChart3,
     title: "Live Analytics",
-    description: "Track performance metrics, win rates, and pair diagnostics.",
+    description: "Track performance and pair diagnostics.",
   },
 ];
 
 const stats = [
-  { value: "8", label: "Currency Pairs" },
-  { value: "24/7", label: "Live Scanning" },
-  { value: "Real-time", label: "Telegram Alerts" },
+  { value: "8", label: "Pairs" },
+  { value: "24/7", label: "Scanning" },
+  { value: "Live", label: "Alerts" },
 ];
 
 export function LoginPage() {
@@ -39,101 +39,102 @@ export function LoginPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!session) {
-      return;
-    }
+    if (!session) return;
     router.replace(session.role === "ADMIN" ? ADMIN_ROUTE : "/");
   }, [router, session]);
 
   return (
-    <main className="min-h-screen bg-[#0a0a0b] text-zinc-100">
-      {/* Background effects */}
-      <div className="pointer-events-none fixed inset-0">
-        <div className="absolute inset-0 grid-pattern opacity-30" />
-        <div className="absolute top-0 left-1/4 h-[500px] w-[500px] rounded-full bg-cyan-500/5 blur-[120px]" />
-        <div className="absolute bottom-0 right-1/4 h-[400px] w-[400px] rounded-full bg-cyan-500/3 blur-[100px]" />
+    <main className="min-h-screen bg-background text-foreground noise-overlay">
+      <div className="pointer-events-none fixed inset-0 dot-grid" />
+      
+      {/* Ambient light effects */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute -top-40 -left-40 size-80 rounded-full bg-brand/5 blur-[100px]" />
+        <div className="absolute -bottom-40 -right-40 size-80 rounded-full bg-brand/3 blur-[120px]" />
       </div>
 
-      <div className="relative mx-auto grid min-h-screen max-w-[1440px] lg:grid-cols-[1fr_480px]">
-        {/* Left side - Branding */}
-        <section className="hidden lg:flex flex-col justify-between p-12">
+      <div className="relative mx-auto grid min-h-screen max-w-[1400px] lg:grid-cols-2">
+        {/* Left - Branding */}
+        <section className="hidden lg:flex flex-col justify-between p-10 xl:p-16">
           <div>
             {/* Logo */}
             <div className="flex items-center gap-3">
-              <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-cyan-600 font-mono text-lg font-bold text-zinc-900 shadow-lg shadow-cyan-500/25">
+              <div className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand to-amber-600 font-mono text-sm font-black text-brand-foreground shadow-lg shadow-brand/25">
                 FX
               </div>
               <div>
-                <div className="text-lg font-semibold text-zinc-100">Forex AI Radar</div>
-                <div className="text-sm text-zinc-500">Trading Terminal</div>
+                <div className="text-base font-bold text-foreground">Forex AI Radar</div>
+                <div className="text-xs text-muted-foreground">Trading Terminal</div>
               </div>
             </div>
 
             {/* Hero */}
-            <div className="mt-16 max-w-xl">
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/80 px-3 py-1.5 text-xs font-medium text-zinc-400">
-                <Zap size={12} className="text-cyan-400" />
-                AI-Powered Trading Terminal
+            <div className="mt-20 max-w-md">
+              <div className="mb-5 inline-flex items-center gap-2 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                <Activity size={12} className="text-brand" />
+                AI-Powered Trading
               </div>
-              <h1 className="text-4xl font-bold leading-tight tracking-tight text-zinc-50 xl:text-5xl">
+              <h1 className="text-3xl font-bold leading-tight tracking-tight text-foreground xl:text-4xl">
                 Professional forex signals with{" "}
-                <span className="text-cyan-400">intelligent execution</span>
+                <span className="text-gradient-gold">intelligent execution</span>
               </h1>
-              <p className="mt-6 text-lg leading-relaxed text-zinc-400">
-                A clean, private terminal built for informed decision-making. Live market data, AI confidence scoring, and controlled access in one focused workspace.
+              <p className="mt-5 text-base leading-relaxed text-muted-foreground">
+                A clean, private terminal for informed decision-making. Live market data, AI confidence scoring, and controlled access.
               </p>
             </div>
 
             {/* Stats */}
-            <div className="mt-12 flex gap-8">
+            <div className="mt-10 flex gap-8">
               {stats.map((stat) => (
                 <div key={stat.label}>
-                  <div className="font-mono text-2xl font-bold text-zinc-100">{stat.value}</div>
-                  <div className="mt-1 text-sm text-zinc-500">{stat.label}</div>
+                  <div className="font-mono text-2xl font-bold text-foreground">{stat.value}</div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">{stat.label}</div>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Features */}
-          <div className="grid gap-4 xl:grid-cols-3">
+          <div className="grid gap-3">
             {features.map((feature) => (
               <div
                 key={feature.title}
-                className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5 transition-colors hover:border-zinc-700"
+                className="premium-card flex items-start gap-4 p-4 card-hover"
               >
-                <div className="mb-4 flex size-10 items-center justify-center rounded-xl bg-zinc-800 text-cyan-400">
-                  <feature.icon size={18} />
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-muted text-brand">
+                  <feature.icon size={16} />
                 </div>
-                <div className="text-sm font-semibold text-zinc-200">{feature.title}</div>
-                <p className="mt-2 text-sm leading-relaxed text-zinc-500">{feature.description}</p>
+                <div>
+                  <div className="text-sm font-semibold text-foreground">{feature.title}</div>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{feature.description}</p>
+                </div>
               </div>
             ))}
           </div>
         </section>
 
-        {/* Right side - Login form */}
-        <section className="flex items-center justify-center p-6 lg:border-l lg:border-zinc-800/80 lg:bg-zinc-900/30">
+        {/* Right - Login Form */}
+        <section className="flex items-center justify-center p-6 lg:border-l lg:border-border lg:p-10">
           <div className="w-full max-w-sm">
             {/* Mobile logo */}
-            <div className="mb-8 flex items-center justify-center gap-3 lg:hidden">
-              <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-cyan-600 font-mono text-lg font-bold text-zinc-900 shadow-lg shadow-cyan-500/25">
+            <div className="mb-10 flex items-center justify-center gap-3 lg:hidden">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand to-amber-600 font-mono text-sm font-black text-brand-foreground shadow-lg shadow-brand/25">
                 FX
               </div>
               <div>
-                <div className="text-lg font-semibold text-zinc-100">Forex AI Radar</div>
-                <div className="text-sm text-zinc-500">Trading Terminal</div>
+                <div className="text-sm font-bold text-foreground">Forex AI Radar</div>
+                <div className="text-xs text-muted-foreground">Trading Terminal</div>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-6 shadow-xl shadow-black/20 backdrop-blur-xl sm:p-8">
+            <div className="premium-card p-6 sm:p-8 glow-gold">
               <div className="mb-8">
-                <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-zinc-800 text-cyan-400">
-                  <Lock size={20} />
+                <div className="mb-4 flex size-11 items-center justify-center rounded-xl bg-brand-muted text-brand">
+                  <Key size={20} />
                 </div>
-                <h2 className="text-2xl font-bold text-zinc-50">Sign in</h2>
-                <p className="mt-2 text-sm leading-relaxed text-zinc-500">
-                  Enter your access key to continue. On first login, the key binds permanently to your username.
+                <h2 className="text-xl font-bold text-foreground">Sign in</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Enter your credentials to access the terminal.
                 </p>
               </div>
 
@@ -144,7 +145,7 @@ export function LoginPage() {
                   setError("");
                   void signIn(accessKey, userName).then((nextSession) => {
                     if (!nextSession) {
-                      setError("Invalid credentials. Please check your username and access key.");
+                      setError("Invalid credentials. Check your username and access key.");
                       return;
                     }
                     router.push(nextSession.role === "ADMIN" ? ADMIN_ROUTE : "/");
@@ -152,20 +153,20 @@ export function LoginPage() {
                 }}
               >
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-zinc-300">Username</label>
+                  <label className="mb-1.5 block text-xs font-medium text-foreground">Username</label>
                   <input
-                    className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 outline-none transition-colors focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20"
+                    className="w-full rounded-lg border border-border bg-secondary px-3.5 py-2.5 text-sm text-foreground placeholder-muted-foreground transition-colors focus:border-brand focus:ring-1 focus:ring-brand/20"
                     onChange={(event) => setUserName(event.target.value)}
-                    placeholder="Enter your username"
+                    placeholder="Enter username"
                     value={userName}
                     autoComplete="username"
                   />
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-zinc-300">Access Key</label>
+                  <label className="mb-1.5 block text-xs font-medium text-foreground">Access Key</label>
                   <input
-                    className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 font-mono text-sm text-zinc-100 placeholder-zinc-500 outline-none transition-colors focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20"
+                    className="w-full rounded-lg border border-border bg-secondary px-3.5 py-2.5 font-mono text-sm text-foreground placeholder-muted-foreground transition-colors focus:border-brand focus:ring-1 focus:ring-brand/20"
                     onChange={(event) => setAccessKey(event.target.value)}
                     placeholder="fxr_..."
                     value={accessKey}
@@ -175,19 +176,19 @@ export function LoginPage() {
                 </div>
 
                 {error && (
-                  <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
+                  <div className="rounded-lg border border-danger/30 bg-danger-muted px-3.5 py-2.5 text-sm text-danger">
                     {error}
                   </div>
                 )}
 
                 <button
-                  className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 px-4 py-3 text-sm font-semibold text-zinc-900 shadow-lg shadow-cyan-500/25 transition-all hover:shadow-cyan-500/40 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="btn-primary w-full rounded-lg px-4 py-2.5 text-sm disabled:opacity-50"
                   disabled={loading || !userName.trim() || !accessKey.trim()}
                   type="submit"
                 >
                   {loading ? (
                     <span className="flex items-center justify-center gap-2">
-                      <Activity size={16} className="animate-spin" />
+                      <Activity size={14} className="animate-spin" />
                       Authenticating...
                     </span>
                   ) : (
@@ -196,9 +197,10 @@ export function LoginPage() {
                 </button>
               </form>
 
-              <div className="mt-6 rounded-xl border border-zinc-800 bg-zinc-800/30 px-4 py-3">
-                <p className="text-xs leading-relaxed text-zinc-500">
-                  Access is key-based and private. Contact your administrator if you need credentials.
+              <div className="mt-6 flex items-start gap-2.5 rounded-lg border border-border bg-secondary/50 p-3.5">
+                <Lock size={14} className="mt-0.5 shrink-0 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">
+                  Access is key-based. Contact your administrator for credentials.
                 </p>
               </div>
             </div>

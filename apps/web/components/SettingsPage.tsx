@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, ChevronRight, Settings, Shield, SlidersHorizontal, UserRound } from "lucide-react";
+import { Bell, ChevronRight, Shield, SlidersHorizontal, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import {
@@ -41,15 +41,11 @@ export function SettingsPage() {
   });
 
   useEffect(() => {
-    if (data?.strategySettings) {
-      setSettings(data.strategySettings);
-    }
+    if (data?.strategySettings) setSettings(data.strategySettings);
   }, [data?.strategySettings]);
 
   useEffect(() => {
-    if (data?.preferences) {
-      setPreferences(data.preferences);
-    }
+    if (data?.preferences) setPreferences(data.preferences);
   }, [data?.preferences]);
 
   useEffect(() => {
@@ -59,46 +55,38 @@ export function SettingsPage() {
   return (
     <TerminalShell
       title="Settings"
-      subtitle="Configure your workspace preferences, notification routing, and platform controls."
+      subtitle="Configure workspace, notifications, and platform controls."
       preferences={data?.preferences}
       actions={
         <>
-          <MetricPill label="Role" value={session?.role === "ADMIN" ? "Operator" : "User"} />
+          <MetricPill label="" value={session?.role === "ADMIN" ? "Operator" : "User"} />
           <MetricPill label="Recipients" value={String(recipients.length)} />
         </>
       }
     >
-      <div className="grid gap-4 2xl:grid-cols-[1fr_400px]">
+      <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
         <div className="space-y-4">
           {/* Workspace Profile */}
-          <TerminalSurface title="Workspace Profile" detail="Key scoped" icon={UserRound}>
-            <div className="space-y-6">
+          <TerminalSurface title="Workspace" detail="Key scoped" icon={UserRound}>
+            <div className="space-y-5">
               {/* Watchlist */}
               <div>
-                <div className="mb-3 text-sm font-medium text-zinc-300">Watchlist</div>
+                <div className="mb-2.5 text-xs font-semibold text-foreground">Watchlist</div>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {STRATEGY_PAIRS.map((pair) => {
                     const enabled = preferences.watchlist.includes(pair);
                     return (
                       <button
                         key={pair}
-                        className={`rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+                        className={`rounded-lg border px-3 py-2.5 text-sm font-medium transition-all ${
                           enabled
-                            ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-400"
-                            : "border-zinc-800 bg-zinc-800/40 text-zinc-400 hover:border-zinc-700"
+                            ? "border-brand/40 bg-brand-muted text-brand"
+                            : "border-border bg-secondary text-muted-foreground hover:border-border hover:bg-secondary/80"
                         }`}
                         onClick={() =>
-                          setPreferences((current) => {
-                            const nextWatchlist = enabled
-                              ? current.watchlist.filter((item) => item !== pair)
-                              : [...current.watchlist, pair];
-                            return {
-                              ...current,
-                              watchlist: nextWatchlist,
-                              selected_pair: nextWatchlist.includes(current.selected_pair)
-                                ? current.selected_pair
-                                : (nextWatchlist[0] ?? current.selected_pair),
-                            };
+                          setPreferences((c) => {
+                            const next = enabled ? c.watchlist.filter((i) => i !== pair) : [...c.watchlist, pair];
+                            return { ...c, watchlist: next, selected_pair: next.includes(c.selected_pair) ? c.selected_pair : (next[0] ?? c.selected_pair) };
                           })
                         }
                         type="button"
@@ -113,10 +101,10 @@ export function SettingsPage() {
               {/* Selects */}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="mb-2 block text-sm text-zinc-400">Default pair</label>
+                  <label className="mb-1.5 block text-xs font-medium text-foreground">Default pair</label>
                   <select
-                    className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-sm text-zinc-100"
-                    onChange={(event) => setPreferences((current) => ({ ...current, selected_pair: event.target.value }))}
+                    className="w-full rounded-lg border border-border bg-secondary px-3 py-2.5 text-sm text-foreground"
+                    onChange={(e) => setPreferences((c) => ({ ...c, selected_pair: e.target.value }))}
                     value={preferences.selected_pair}
                   >
                     {preferences.watchlist.map((pair) => (
@@ -125,15 +113,10 @@ export function SettingsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm text-zinc-400">Density</label>
+                  <label className="mb-1.5 block text-xs font-medium text-foreground">Density</label>
                   <select
-                    className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-sm text-zinc-100"
-                    onChange={(event) =>
-                      setPreferences((current) => ({
-                        ...current,
-                        density_mode: event.target.value as "compact" | "comfortable",
-                      }))
-                    }
+                    className="w-full rounded-lg border border-border bg-secondary px-3 py-2.5 text-sm text-foreground"
+                    onChange={(e) => setPreferences((c) => ({ ...c, density_mode: e.target.value as "compact" | "comfortable" }))}
                     value={preferences.density_mode}
                   >
                     <option value="compact">Compact</option>
@@ -143,49 +126,38 @@ export function SettingsPage() {
               </div>
 
               {/* Toggles */}
-              <label className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-800/30 p-4 cursor-pointer">
+              <label className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-secondary/50 p-3.5">
                 <div>
-                  <div className="text-sm font-medium text-zinc-200">Telegram notifications</div>
-                  <div className="mt-1 text-xs text-zinc-500">Enable or mute delivery.</div>
+                  <div className="text-sm font-medium text-foreground">Telegram notifications</div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">Enable or mute delivery.</div>
                 </div>
                 <input
                   checked={preferences.notifications_enabled}
-                  className="size-5 accent-cyan-500"
-                  onChange={(event) =>
-                    setPreferences((current) => ({ ...current, notifications_enabled: event.target.checked }))
-                  }
+                  className="size-4 accent-brand"
+                  onChange={(e) => setPreferences((c) => ({ ...c, notifications_enabled: e.target.checked }))}
                   type="checkbox"
                 />
               </label>
 
-              <div className="rounded-xl border border-zinc-800 bg-zinc-800/30 p-4">
+              <div className="rounded-lg border border-border bg-secondary/50 p-3.5">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <div className="text-sm font-medium text-zinc-200">Auto demo trading</div>
-                    <div className="mt-1 text-xs text-zinc-500">
-                      Let the demo account pick the best live signal automatically.
-                    </div>
+                    <div className="text-sm font-medium text-foreground">Auto demo trading</div>
+                    <div className="mt-0.5 text-xs text-muted-foreground">Let demo pick best signal automatically.</div>
                   </div>
                   <input
                     checked={preferences.demo_auto_trade_enabled}
-                    className="size-5 accent-cyan-500"
-                    onChange={(event) =>
-                      setPreferences((current) => ({ ...current, demo_auto_trade_enabled: event.target.checked }))
-                    }
+                    className="size-4 accent-brand"
+                    onChange={(e) => setPreferences((c) => ({ ...c, demo_auto_trade_enabled: e.target.checked }))}
                     type="checkbox"
                   />
                 </div>
-                <div className="mt-4">
-                  <label className="mb-2 block text-sm text-zinc-400">Auto demo units</label>
+                <div className="mt-3">
+                  <label className="mb-1.5 block text-xs text-muted-foreground">Auto demo units</label>
                   <input
-                    className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-sm text-zinc-100"
+                    className="w-full rounded-lg border border-border bg-secondary px-3 py-2.5 text-sm text-foreground"
                     min={100}
-                    onChange={(event) =>
-                      setPreferences((current) => ({
-                        ...current,
-                        demo_auto_trade_units: Math.max(100, Number(event.target.value) || 100),
-                      }))
-                    }
+                    onChange={(e) => setPreferences((c) => ({ ...c, demo_auto_trade_units: Math.max(100, Number(e.target.value) || 100) }))}
                     step={100}
                     type="number"
                     value={preferences.demo_auto_trade_units}
@@ -194,7 +166,7 @@ export function SettingsPage() {
               </div>
 
               <button
-                className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 px-4 py-3 text-sm font-semibold text-zinc-900 shadow-lg shadow-cyan-500/20 transition-all hover:shadow-cyan-500/30 disabled:opacity-50"
+                className="btn-primary w-full rounded-lg px-4 py-2.5 text-sm disabled:opacity-50"
                 disabled={isPending || preferences.watchlist.length === 0}
                 onClick={() => savePreferences(preferences)}
                 type="button"
@@ -204,66 +176,49 @@ export function SettingsPage() {
             </div>
           </TerminalSurface>
 
-          {/* Telegram Delivery */}
-          <TerminalSurface
-            title="Telegram Delivery"
-            detail={session?.role === "ADMIN" ? "Admin can manage multiple" : "One recipient"}
-            icon={Bell}
-          >
+          {/* Telegram */}
+          <TerminalSurface title="Telegram Delivery" detail={session?.role === "ADMIN" ? "Admin" : "1 recipient"} icon={Bell}>
             <div className="space-y-4">
-              <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <input
-                  className="flex-1 rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500"
+                  className="flex-1 rounded-lg border border-border bg-secondary px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground"
                   maxLength={32}
-                  onChange={(event) => setRecipientInput(event.target.value)}
-                  placeholder={session?.role === "ADMIN" ? "Add another chat ID" : "Add your chat ID"}
+                  onChange={(e) => setRecipientInput(e.target.value)}
+                  placeholder={session?.role === "ADMIN" ? "Add chat ID" : "Add your chat ID"}
                   value={recipientInput}
                 />
                 <button
-                  className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-sm font-medium text-cyan-400 transition-all hover:bg-cyan-500/20 disabled:opacity-50"
+                  className="rounded-lg border border-brand/30 bg-brand-muted px-4 py-2.5 text-sm font-medium text-brand transition-all hover:bg-brand/20 disabled:opacity-50"
                   disabled={!recipientInput.trim() || (session?.role !== "ADMIN" && recipients.length >= 1)}
-                  onClick={() => {
-                    void addTelegramRecipient(recipientInput).then((next) => {
-                      setRecipients(next);
-                      setRecipientInput("");
-                    });
-                  }}
+                  onClick={() => { void addTelegramRecipient(recipientInput).then((n) => { setRecipients(n); setRecipientInput(""); }); }}
                   type="button"
                 >
-                  Add recipient
+                  Add
                 </button>
               </div>
 
-              <div className="space-y-3">
-                {recipients.map((recipient) => (
-                  <div key={recipient.recipient_id} className="rounded-xl border border-zinc-800 bg-zinc-800/30 p-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <div className="font-mono text-sm text-zinc-100">{recipient.chat_id}</div>
-                        <div className="mt-1 text-xs text-zinc-500">
-                          {recipient.is_enabled ? "Enabled" : "Muted"}
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          className="rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-2 text-xs text-zinc-300 transition-colors hover:bg-zinc-700"
-                          onClick={() => {
-                            void toggleTelegramRecipient(recipient.recipient_id, !recipient.is_enabled).then(setRecipients);
-                          }}
-                          type="button"
-                        >
-                          {recipient.is_enabled ? "Disable" : "Enable"}
-                        </button>
-                        <button
-                          className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-400 transition-colors hover:bg-rose-500/20"
-                          onClick={() => {
-                            void removeTelegramRecipient(recipient.recipient_id).then(setRecipients);
-                          }}
-                          type="button"
-                        >
-                          Remove
-                        </button>
-                      </div>
+              <div className="space-y-2.5">
+                {recipients.map((r) => (
+                  <div key={r.recipient_id} className="flex flex-col gap-2.5 rounded-lg border border-border bg-secondary/50 p-3.5 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="font-mono text-sm text-foreground">{r.chat_id}</div>
+                      <div className="mt-0.5 text-xs text-muted-foreground">{r.is_enabled ? "Enabled" : "Muted"}</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        className="rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-secondary/80"
+                        onClick={() => { void toggleTelegramRecipient(r.recipient_id, !r.is_enabled).then(setRecipients); }}
+                        type="button"
+                      >
+                        {r.is_enabled ? "Disable" : "Enable"}
+                      </button>
+                      <button
+                        className="rounded-lg border border-danger/30 bg-danger-muted px-3 py-1.5 text-xs text-danger transition-colors hover:bg-danger/20"
+                        onClick={() => { void removeTelegramRecipient(r.recipient_id).then(setRecipients); }}
+                        type="button"
+                      >
+                        Remove
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -275,39 +230,37 @@ export function SettingsPage() {
         {/* Sidebar */}
         <div className="space-y-4">
           <TerminalSurface title="Profile Snapshot" icon={Shield}>
-            <div className="grid grid-cols-2 gap-3">
-              <DataChip label="Default Pair" value={preferences.selected_pair} />
+            <div className="grid grid-cols-2 gap-2">
+              <DataChip label="Default" value={preferences.selected_pair} />
               <DataChip label="Watchlist" value={String(preferences.watchlist.length)} />
               <DataChip label="Density" value={preferences.density_mode} />
               <DataChip label="Alerts" value={preferences.notifications_enabled ? "On" : "Off"} />
               <DataChip label="Auto Demo" value={preferences.demo_auto_trade_enabled ? "On" : "Off"} />
-              <DataChip label="Demo Units" value={String(preferences.demo_auto_trade_units)} />
+              <DataChip label="Units" value={String(preferences.demo_auto_trade_units)} />
             </div>
           </TerminalSurface>
 
           {/* Admin Controls */}
           {session?.role === "ADMIN" && (
-            <TerminalSurface title="Engine Controls" detail="Admin only" icon={SlidersHorizontal}>
-              <div className="space-y-5">
+            <TerminalSurface title="Engine Controls" detail="Admin" icon={SlidersHorizontal}>
+              <div className="space-y-4">
                 <div>
-                  <div className="mb-3 text-sm text-zinc-400">Enabled pairs</div>
+                  <div className="mb-2.5 text-xs font-semibold text-foreground">Enabled pairs</div>
                   <div className="grid grid-cols-2 gap-2">
                     {STRATEGY_PAIRS.map((pair) => {
                       const enabled = settings.enabled_pairs.includes(pair);
                       return (
                         <button
                           key={pair}
-                          className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition-all ${
+                          className={`rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
                             enabled
-                              ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-400"
-                              : "border-zinc-800 bg-zinc-800/40 text-zinc-500 hover:border-zinc-700"
+                              ? "border-brand/40 bg-brand-muted text-brand"
+                              : "border-border bg-secondary text-muted-foreground hover:bg-secondary/80"
                           }`}
                           onClick={() =>
-                            setSettings((current) => ({
-                              ...current,
-                              enabled_pairs: enabled
-                                ? current.enabled_pairs.filter((item) => item !== pair)
-                                : [...current.enabled_pairs, pair],
+                            setSettings((c) => ({
+                              ...c,
+                              enabled_pairs: enabled ? c.enabled_pairs.filter((i) => i !== pair) : [...c.enabled_pairs, pair],
                             }))
                           }
                           type="button"
@@ -320,24 +273,22 @@ export function SettingsPage() {
                 </div>
 
                 <div>
-                  <div className="mb-3 text-sm text-zinc-400">Enabled setups</div>
+                  <div className="mb-2.5 text-xs font-semibold text-foreground">Setups</div>
                   <div className="space-y-2">
                     {STRATEGY_SETUPS.map((setup) => {
                       const enabled = settings.enabled_setups.includes(setup);
                       return (
                         <button
                           key={setup}
-                          className={`w-full rounded-xl border px-4 py-3 text-left text-sm font-medium transition-all ${
+                          className={`w-full rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-all ${
                             enabled
-                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                              : "border-zinc-800 bg-zinc-800/40 text-zinc-500 hover:border-zinc-700"
+                              ? "border-success/30 bg-success-muted text-success"
+                              : "border-border bg-secondary text-muted-foreground hover:bg-secondary/80"
                           }`}
                           onClick={() =>
-                            setSettings((current) => ({
-                              ...current,
-                              enabled_setups: enabled
-                                ? current.enabled_setups.filter((item) => item !== setup)
-                                : [...current.enabled_setups, setup],
+                            setSettings((c) => ({
+                              ...c,
+                              enabled_setups: enabled ? c.enabled_setups.filter((i) => i !== setup) : [...c.enabled_setups, setup],
                             }))
                           }
                           type="button"
@@ -350,41 +301,37 @@ export function SettingsPage() {
                 </div>
 
                 <div>
-                  <div className="mb-2 flex items-center justify-between text-sm">
-                    <span className="text-zinc-400">Min confidence</span>
-                    <span className="font-mono text-zinc-200">{Math.round(settings.min_confidence * 100)}%</span>
+                  <div className="mb-1.5 flex items-center justify-between text-xs">
+                    <span className="font-medium text-foreground">Min confidence</span>
+                    <span className="font-mono text-muted-foreground">{Math.round(settings.min_confidence * 100)}%</span>
                   </div>
                   <input
-                    className="w-full accent-cyan-500"
+                    className="w-full accent-brand"
                     max={0.9}
                     min={0.4}
-                    onChange={(event) =>
-                      setSettings((current) => ({ ...current, min_confidence: Number(event.target.value) }))
-                    }
+                    onChange={(e) => setSettings((c) => ({ ...c, min_confidence: Number(e.target.value) }))}
                     step={0.01}
                     type="range"
                     value={settings.min_confidence}
                   />
                 </div>
 
-                <label className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-800/30 p-4 cursor-pointer">
+                <label className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-secondary/50 p-3">
                   <div>
-                    <div className="text-sm font-medium text-zinc-200">Auto pair blocking</div>
-                    <div className="mt-1 text-xs text-zinc-500">Suppress weak pairs automatically.</div>
+                    <div className="text-sm font-medium text-foreground">Auto blocking</div>
+                    <div className="mt-0.5 text-xs text-muted-foreground">Suppress weak pairs.</div>
                   </div>
                   <input
                     checked={settings.auto_block_enabled}
-                    className="size-5 accent-cyan-500"
-                    onChange={(event) =>
-                      setSettings((current) => ({ ...current, auto_block_enabled: event.target.checked }))
-                    }
+                    className="size-4 accent-brand"
+                    onChange={(e) => setSettings((c) => ({ ...c, auto_block_enabled: e.target.checked }))}
                     type="checkbox"
                   />
                 </label>
 
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-2 sm:grid-cols-2">
                   <button
-                    className="rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 px-4 py-3 text-sm font-semibold text-zinc-900 disabled:opacity-50"
+                    className="btn-primary rounded-lg px-4 py-2.5 text-sm disabled:opacity-50"
                     disabled={isPending}
                     onClick={() => saveSettings(settings)}
                     type="button"
@@ -392,7 +339,7 @@ export function SettingsPage() {
                     Save controls
                   </button>
                   <button
-                    className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-400 disabled:opacity-50"
+                    className="rounded-lg border border-danger/30 bg-danger-muted px-4 py-2.5 text-sm font-medium text-danger disabled:opacity-50"
                     disabled={isPending}
                     onClick={hardReset}
                     type="button"
@@ -401,19 +348,19 @@ export function SettingsPage() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <DataChip label="Auto Blocked" value={data?.optimizer?.auto_blocked_pairs.join(", ") || "None"} />
+                <div className="grid grid-cols-2 gap-2">
+                  <DataChip label="Blocked" value={data?.optimizer?.auto_blocked_pairs.join(", ") || "None"} />
                   <DataChip label="Min Conf" value={formatNumber(settings.min_confidence * 100, "%")} />
                 </div>
 
                 <button
-                  className="flex w-full items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-400 transition-all hover:bg-amber-500/20 disabled:opacity-50"
+                  className="flex w-full items-center justify-between rounded-lg border border-warning/30 bg-warning-muted px-4 py-2.5 text-sm font-medium text-warning transition-all hover:bg-warning/20 disabled:opacity-50"
                   disabled={isPending}
                   onClick={applyOptimizerNow}
                   type="button"
                 >
-                  <span>Apply optimizer recommendations</span>
-                  <ChevronRight size={16} />
+                  <span>Apply optimizer</span>
+                  <ChevronRight size={14} />
                 </button>
               </div>
             </TerminalSurface>
