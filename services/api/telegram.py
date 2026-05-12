@@ -4,7 +4,7 @@ import os
 
 import httpx
 
-from database import has_notification, has_open_entry_notification, list_telegram_recipients, mark_notification_sent
+from database import get_strategy_settings, has_notification, has_open_entry_notification, list_telegram_recipients, mark_notification_sent
 from user_preferences import read_user_preferences
 
 
@@ -42,7 +42,8 @@ def _send_message(text: str) -> None:
 def send_signal_notification(signal: dict[str, object]) -> bool:
     if signal["signal"] not in {"BUY", "SELL"}:
         return False
-    if float(signal["confidence"]) < 0.7:
+    min_confidence = float(get_strategy_settings().get("min_confidence", 0.60))
+    if float(signal["confidence"]) < min_confidence:
         return False
     if not telegram_configured():
         return False

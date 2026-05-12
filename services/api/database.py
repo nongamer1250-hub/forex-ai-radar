@@ -514,6 +514,29 @@ def get_all_trades(limit: int = 100) -> list[dict[str, Any]]:
         return _fetchall_dicts(cursor)
 
 
+def get_latest_trade_for_pair(pair: str) -> dict[str, Any] | None:
+    with get_connection() as connection:
+        cursor = _execute(
+            connection,
+            "SELECT * FROM trades WHERE pair = %s ORDER BY timestamp DESC LIMIT 1"
+            if is_postgres()
+            else "SELECT * FROM trades WHERE pair = ? ORDER BY timestamp DESC LIMIT 1",
+            (pair,),
+        )
+        return _fetchone_dict(cursor)
+
+
+def get_distinct_recent_trades(limit: int = 100) -> list[dict[str, Any]]:
+    latest_by_pair: dict[str, dict[str, Any]] = {}
+    for trade in get_all_trades(limit=500):
+        pair = str(trade.get("pair", ""))
+        if pair and pair not in latest_by_pair:
+            latest_by_pair[pair] = trade
+        if len(latest_by_pair) >= limit:
+            break
+    return list(latest_by_pair.values())[:limit]
+
+
 def get_open_trades() -> list[dict[str, Any]]:
     with get_connection() as connection:
         cursor = _execute(

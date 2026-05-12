@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from statistics import mean
 from typing import Any
 
-from database import get_strategy_settings, insert_trade, now_iso
+from database import get_latest_trade_for_pair, get_strategy_settings, insert_trade, now_iso
 from learning import compute_learning_bias, get_auto_blocked_pairs
 from market_data import Candle, fetch_candles, get_market_state
 from telegram import send_signal_notification
@@ -341,6 +341,9 @@ def force_scan() -> list[dict[str, object]]:
             signal["setup_quality"] = "WAIT"
             signal["setup_type"] = "NONE"
             signal["confidence"] = min(float(signal["confidence"]), 0.2)
+        previous = get_latest_trade_for_pair(str(signal["pair"]))
+        if previous and not signal_changed(previous, signal):
+            continue
         insert_trade(signal)
     actionable = [
         signal
@@ -353,3 +356,24 @@ def force_scan() -> list[dict[str, object]]:
         best_signal = max(actionable, key=lambda signal: (float(signal["confidence"]), float(signal["setup_score"]), float(signal["rr"])))
         send_signal_notification(best_signal)
     return signals
+
+
+def signal_changed(previous: dict[str, object], current: dict[str, object]) -> bool:
+    tracked_fields = [
+        "signal",
+        "trade_status",
+        "setup_type",
+        "setup_quality",
+        "rr",
+        "entry",
+        "sl",
+        "tp",
+    ]
+    if any(previous.get(field) != current.get(field) for field in tracked_fields):
+        return True
+
+    previous_confidence = round(float(previous.get("confidence", 0)), 2)
+    current_confidence = round(float(current.get("confidence", 0)), 2)
+    previous_score = round(float(previous.get("setup_score", 0)), 2)
+    current_score = round(float(current.get("setup_score", 0)), 2)
+    return previous_confidence != current_confidence or previous_score != current_score

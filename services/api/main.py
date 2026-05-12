@@ -28,6 +28,7 @@ from backtest import run_backtest
 from database import (
     get_active_entry_trade,
     get_all_trades,
+    get_distinct_recent_trades,
     get_latest_entry_trade,
     get_strategy_settings,
     init_db,
@@ -273,7 +274,7 @@ def apply_optimizer(session: dict[str, object] = Depends(require_session)) -> di
 
 @app.get("/signals")
 def signals(session: dict[str, object] = Depends(require_session)) -> list[dict[str, object]]:
-    return get_all_trades(limit=20)
+    return get_distinct_recent_trades(limit=20)
 
 
 @app.get("/active-telegram-trade")
@@ -288,7 +289,7 @@ def latest_telegram_trade(session: dict[str, object] = Depends(require_session))
 
 @app.get("/view-trades")
 def view_trades(session: dict[str, object] = Depends(require_session)) -> list[dict[str, object]]:
-    return get_all_trades(limit=200)
+    return get_distinct_recent_trades(limit=200)
 
 
 @app.get("/demo-account")
