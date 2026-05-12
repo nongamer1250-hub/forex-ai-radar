@@ -25,128 +25,161 @@ export function AnalyticsPage() {
   return (
     <TerminalShell
       title="Analytics"
-      subtitle="Inspect execution quality through a dedicated analysis workspace with cleaner hierarchy, stronger contrast, and pair-level diagnostics."
+      subtitle="Track execution quality, win rates, and pair-level performance diagnostics."
       preferences={data?.preferences}
     >
+      {/* Hero Metrics */}
       <MiniStatGrid>
-        <HeroMetric label="Wins" value={String(analytics?.wins ?? 0)} footnote="Resolved take-profit outcomes." accent="emerald" />
-        <HeroMetric label="Losses" value={String(analytics?.losses ?? 0)} footnote="Resolved stop-loss outcomes." accent="rose" />
-        <HeroMetric label="Average RR" value={formatNumber(analytics?.avg_rr ?? 0)} footnote="Average risk-reward across tracked trades." />
-        <HeroMetric label="Best Pair" value={analytics?.best_pair ?? "N/A"} footnote="Highest current edge based on recorded outcomes." accent="amber" />
+        <HeroMetric label="Wins" value={String(analytics?.wins ?? 0)} footnote="Take-profit outcomes." accent="emerald" />
+        <HeroMetric label="Losses" value={String(analytics?.losses ?? 0)} footnote="Stop-loss outcomes." accent="rose" />
+        <HeroMetric label="Average RR" value={formatNumber(analytics?.avg_rr ?? 0)} footnote="Risk-reward across all trades." />
+        <HeroMetric label="Best Pair" value={analytics?.best_pair ?? "N/A"} footnote="Highest edge based on outcomes." accent="amber" />
       </MiniStatGrid>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_380px]">
-        <div className="grid gap-4">
-          <TerminalSurface title="Performance Strip" detail="Live summary" icon={Trophy}>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-[22px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))] p-4">
-                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Profit Factor</div>
-                <div className="mt-2 font-mono text-2xl font-semibold text-white">{formatNumber(analytics?.profit_factor ?? 0)}</div>
+      <div className="grid gap-4 xl:grid-cols-[1fr_380px]">
+        <div className="space-y-4">
+          {/* Performance Strip */}
+          <TerminalSurface title="Performance Summary" detail="Live metrics" icon={Trophy}>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-xl border border-zinc-800 bg-zinc-800/30 p-4">
+                <div className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Profit Factor</div>
+                <div className="mt-2 font-mono text-2xl font-bold text-zinc-50">{formatNumber(analytics?.profit_factor ?? 0)}</div>
               </div>
-              <div className="rounded-[22px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))] p-4">
-                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Total Trades</div>
-                <div className="mt-2 font-mono text-2xl font-semibold text-white">{analytics?.total_trades ?? 0}</div>
+              <div className="rounded-xl border border-zinc-800 bg-zinc-800/30 p-4">
+                <div className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Total Trades</div>
+                <div className="mt-2 font-mono text-2xl font-bold text-zinc-50">{analytics?.total_trades ?? 0}</div>
               </div>
-              <div className="rounded-[22px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))] p-4">
-                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Active Trades</div>
-                <div className="mt-2 font-mono text-2xl font-semibold text-white">{analytics?.active_trades ?? 0}</div>
+              <div className="rounded-xl border border-zinc-800 bg-zinc-800/30 p-4">
+                <div className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Active Trades</div>
+                <div className="mt-2 font-mono text-2xl font-bold text-zinc-50">{analytics?.active_trades ?? 0}</div>
               </div>
-              <div className="rounded-[22px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))] p-4">
-                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Win Rate</div>
-                <div className="mt-2 font-mono text-2xl font-semibold text-white">{formatNumber(analytics?.win_rate ?? 0, "%")}</div>
+              <div className="rounded-xl border border-zinc-800 bg-zinc-800/30 p-4">
+                <div className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Win Rate</div>
+                <div className="mt-2 font-mono text-2xl font-bold text-zinc-50">{formatNumber(analytics?.win_rate ?? 0, "%")}</div>
               </div>
             </div>
           </TerminalSurface>
 
-          <TerminalSurface title="Trade Ledger" detail={`${trades.length} rows`} icon={Activity} className="overflow-hidden">
+          {/* Trade Ledger */}
+          <TerminalSurface title="Trade Ledger" detail={`${trades.length} entries`} icon={Activity} className="overflow-hidden">
             {trades.length ? (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[980px] text-left text-sm">
-                  <thead className="border-b border-white/6 text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                <table className="w-full min-w-[900px] text-left text-sm">
+                  <thead className="border-b border-zinc-800 text-[10px] font-medium uppercase tracking-wider text-zinc-500">
                     <tr>
-                      {["Pair", "Signal", "Setup", "Entry", "SL", "TP", "RR", "Status", "Opened"].map((header) => (
-                        <th className="px-0 py-3 first:pr-4 last:pl-4" key={header}>
-                          {header}
-                        </th>
-                      ))}
+                      <th className="pb-3 pr-4">Pair</th>
+                      <th className="pb-3 pr-4">Signal</th>
+                      <th className="pb-3 pr-4">Setup</th>
+                      <th className="pb-3 pr-4">Entry</th>
+                      <th className="pb-3 pr-4">SL</th>
+                      <th className="pb-3 pr-4">TP</th>
+                      <th className="pb-3 pr-4">RR</th>
+                      <th className="pb-3 pr-4">Status</th>
+                      <th className="pb-3">Time</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-zinc-800/60">
                     {trades.map((trade) => (
-                      <tr className="border-b border-white/6 last:border-b-0" key={trade.signal_id}>
-                        <td className="py-3 pr-4 font-mono text-white">{trade.pair}</td>
-                        <td className="py-3">
-                          <span className={`rounded-full border px-2.5 py-1 font-mono text-[11px] ${signalTone(trade.signal)}`}>{trade.signal}</span>
+                      <tr key={trade.signal_id} className="hover:bg-zinc-800/20 transition-colors">
+                        <td className="py-3 pr-4 font-mono font-medium text-zinc-100">{trade.pair}</td>
+                        <td className="py-3 pr-4">
+                          <span className={`rounded-full border px-2 py-0.5 font-mono text-[10px] font-medium ${signalTone(trade.signal)}`}>
+                            {trade.signal}
+                          </span>
                         </td>
-                        <td className="py-3 text-slate-300">{trade.setup_type ?? trade.setup_quality}</td>
-                        <td className="py-3 font-mono text-slate-200">{trade.entry}</td>
-                        <td className="py-3 font-mono text-rose-200">{trade.sl}</td>
-                        <td className="py-3 font-mono text-emerald-200">{trade.tp}</td>
-                        <td className="py-3 font-mono text-slate-200">{trade.rr}</td>
-                        <td className={`py-3 font-mono ${statusTone(trade.trade_status)}`}>{trade.trade_status}</td>
-                        <td className="py-3 pl-4 font-mono text-slate-500">{formatDateTime(trade.timestamp)}</td>
+                        <td className="py-3 pr-4 text-zinc-400">{trade.setup_type ?? trade.setup_quality}</td>
+                        <td className="py-3 pr-4 font-mono text-zinc-300">{trade.entry}</td>
+                        <td className="py-3 pr-4 font-mono text-rose-400">{trade.sl}</td>
+                        <td className="py-3 pr-4 font-mono text-emerald-400">{trade.tp}</td>
+                        <td className="py-3 pr-4 font-mono text-zinc-300">{trade.rr}</td>
+                        <td className={`py-3 pr-4 font-mono ${statusTone(trade.trade_status)}`}>{trade.trade_status}</td>
+                        <td className="py-3 font-mono text-zinc-500">{formatDateTime(trade.timestamp)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             ) : (
-              <EmptyState title="No trades recorded yet" body="As the live engine opens and resolves trades, the ledger will populate here." />
+              <EmptyState title="No trades recorded" body="Trade history will populate as the engine executes." />
             )}
           </TerminalSurface>
 
-          <TerminalSurface title="Pair Performance Matrix" detail={`${pairPerformance?.pairs.length ?? 0} pairs`} icon={BarChart3} className="overflow-hidden">
+          {/* Pair Performance Matrix */}
+          <TerminalSurface title="Pair Performance" detail={`${pairPerformance?.pairs.length ?? 0} pairs`} icon={BarChart3} className="overflow-hidden">
             {pairPerformance?.pairs.length ? (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[920px] text-left text-sm">
-                  <thead className="border-b border-white/6 text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                <table className="w-full min-w-[850px] text-left text-sm">
+                  <thead className="border-b border-zinc-800 text-[10px] font-medium uppercase tracking-wider text-zinc-500">
                     <tr>
-                      {["Pair", "State", "Finished", "Win Rate", "Wins", "Losses", "Avg Bias", "Avg Confidence"].map((header) => (
-                        <th className="px-0 py-3 first:pr-4 last:pl-4" key={header}>
-                          {header}
-                        </th>
-                      ))}
+                      <th className="pb-3 pr-4">Pair</th>
+                      <th className="pb-3 pr-4">State</th>
+                      <th className="pb-3 pr-4">Trades</th>
+                      <th className="pb-3 pr-4">Win Rate</th>
+                      <th className="pb-3 pr-4">Wins</th>
+                      <th className="pb-3 pr-4">Losses</th>
+                      <th className="pb-3 pr-4">Avg Bias</th>
+                      <th className="pb-3">Confidence</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-zinc-800/60">
                     {pairPerformance.pairs.map((row) => (
-                      <tr className="border-b border-white/6 last:border-b-0" key={row.pair}>
-                        <td className="py-3 pr-4 font-mono text-white">{row.pair}</td>
-                        <td className={`py-3 font-mono ${row.enabled ? "text-emerald-300" : "text-slate-500"}`}>{row.enabled ? "ON" : "OFF"}</td>
-                        <td className="py-3 font-mono text-slate-200">{row.finished_trades}</td>
-                        <td className="py-3 font-mono text-slate-200">{row.win_rate}%</td>
-                        <td className="py-3 font-mono text-emerald-300">{row.wins}</td>
-                        <td className="py-3 font-mono text-rose-300">{row.losses}</td>
-                        <td className={`py-3 font-mono ${row.avg_learning_bias >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{row.avg_learning_bias}</td>
-                        <td className="py-3 pl-4 font-mono text-slate-200">{Math.round(row.avg_confidence * 100)}%</td>
+                      <tr key={row.pair} className="hover:bg-zinc-800/20 transition-colors">
+                        <td className="py-3 pr-4 font-mono font-medium text-zinc-100">{row.pair}</td>
+                        <td className={`py-3 pr-4 font-mono ${row.enabled ? "text-emerald-400" : "text-zinc-500"}`}>
+                          {row.enabled ? "ON" : "OFF"}
+                        </td>
+                        <td className="py-3 pr-4 font-mono text-zinc-300">{row.finished_trades}</td>
+                        <td className="py-3 pr-4 font-mono text-zinc-300">{row.win_rate}%</td>
+                        <td className="py-3 pr-4 font-mono text-emerald-400">{row.wins}</td>
+                        <td className="py-3 pr-4 font-mono text-rose-400">{row.losses}</td>
+                        <td className={`py-3 pr-4 font-mono ${row.avg_learning_bias >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                          {row.avg_learning_bias}
+                        </td>
+                        <td className="py-3 font-mono text-zinc-300">{Math.round(row.avg_confidence * 100)}%</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             ) : (
-              <EmptyState title="No pair analytics yet" body="The optimizer starts showing pair-level diagnostics once it has enough logged samples." />
+              <EmptyState title="No pair data" body="Performance data appears after sufficient trade samples." />
             )}
           </TerminalSurface>
         </div>
 
-        <div className="grid content-start gap-4">
-          <TerminalSurface title="Live Learning Status" icon={BrainCircuit}>
-            <div className="grid gap-3">
-              <DataChip label="Closed Trades Used" value={String(data?.learningStatus?.closed_trades_used ?? 0)} />
-              <DataChip label="Net Outcome Score" value={String(data?.learningStatus?.net_outcome_score ?? 0)} />
+        {/* Sidebar */}
+        <div className="space-y-4">
+          <TerminalSurface title="Learning Status" icon={BrainCircuit}>
+            <div className="space-y-3">
+              <DataChip label="Closed Trades" value={String(data?.learningStatus?.closed_trades_used ?? 0)} />
+              <DataChip label="Net Outcome" value={String(data?.learningStatus?.net_outcome_score ?? 0)} />
               <DataChip label="Strongest Pair" value={data?.learningStatus?.strongest_pair ?? "N/A"} />
               <DataChip label="Strongest Setup" value={data?.learningStatus?.strongest_setup ?? "N/A"} />
             </div>
           </TerminalSurface>
 
           <TerminalSurface title="Optimizer State" icon={Trophy}>
-            <div className="grid gap-3">
-              <DataChip label="Auto Blocked Pairs" value={data?.optimizer?.auto_blocked_pairs.join(", ") || "None"} />
-              <DataChip label="Recommended On" value={String(data?.optimizer?.recommended_enabled_pairs.length ?? 0)} />
-              <DataChip label="Recommended Off" value={String(data?.optimizer?.recommended_disabled_pairs.length ?? 0)} />
+            <div className="space-y-3">
+              <DataChip 
+                label="Auto Blocked" 
+                value={data?.optimizer?.auto_blocked_pairs.join(", ") || "None"} 
+              />
+              <DataChip 
+                label="Recommended On" 
+                value={String(data?.optimizer?.recommended_enabled_pairs.length ?? 0)} 
+              />
+              <DataChip 
+                label="Recommended Off" 
+                value={String(data?.optimizer?.recommended_disabled_pairs.length ?? 0)} 
+              />
             </div>
           </TerminalSurface>
+
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+            <p className="text-xs leading-relaxed text-zinc-500">
+              Analytics update in real-time as trades open and close. The optimizer uses this data to recommend pair adjustments.
+            </p>
+          </div>
         </div>
       </div>
     </TerminalShell>
