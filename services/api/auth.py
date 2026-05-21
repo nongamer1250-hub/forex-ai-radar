@@ -163,16 +163,11 @@ def rotate_admin_session(session: dict[str, Any]) -> dict[str, Any]:
     if session.get("role") != "ADMIN":
         return current_session_payload(session)
 
-    previous_token = str(session.get("session_token") or "")
-    rotated = create_auth_session(
-        key_id=str(session.get("key_id") or "admin_env_key"),
-        role="ADMIN",
-        user_name=str(session.get("user_name") or "admin"),
-        expires_at=session_expiry_for_role("ADMIN"),
-    )
-    if previous_token:
-        revoke_auth_session(previous_token)
-    return current_session_payload(rotated)
+    # Admin already uses a memory-only token and must log in again on refresh.
+    # Rotating the session token on every heartbeat creates avoidable 401 races
+    # against concurrent dashboard requests, so we only refresh expiry here.
+    touch_auth_session(str(session.get("session_token") or ""))
+    return current_session_payload(session)
 
 
 def create_user_key(*, label: str) -> dict[str, Any]:
