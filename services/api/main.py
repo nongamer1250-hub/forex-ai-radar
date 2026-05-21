@@ -7,6 +7,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
 from fastapi import Body, Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
 load_dotenv()
@@ -50,6 +51,13 @@ scheduler = BackgroundScheduler()
 def allowed_origins() -> list[str]:
     raw = os.getenv("APP_ORIGINS", "https://forex-ai-radar-web.vercel.app,http://127.0.0.1:3000,http://127.0.0.1:3001")
     return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+def allowed_origin_regex() -> str:
+    return os.getenv(
+        "APP_ORIGIN_REGEX",
+        r"^https://(?:forex-ai-radar-web(?:-[a-z0-9-]+)?|forex-ai-radar-web-[a-z0-9-]+-[a-z0-9-]+)\.vercel\.app$",
+    )
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -101,10 +109,31 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins(),
+    allow_origin_regex=allowed_origin_regex(),
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
+
+
+@app.get("/")
+def root() -> dict[str, object]:
+    return {
+        "service": "Forex AI Radar API",
+        "status": "ok",
+        "health": "/health",
+        "frontend": "https://forex-ai-radar-web.vercel.app/login",
+    }
+
+
+@app.get("/favicon.ico")
+def favicon() -> Response:
+    return Response(status_code=204)
+
+
+@app.get("/login")
+def api_login_redirect() -> RedirectResponse:
+    return RedirectResponse(url="https://forex-ai-radar-web.vercel.app/login", status_code=307)
 
 
 @app.get("/health")
