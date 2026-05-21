@@ -49,14 +49,17 @@ scheduler = BackgroundScheduler()
 
 
 def allowed_origins() -> list[str]:
-    raw = os.getenv("APP_ORIGINS", "https://forex-ai-radar-web.vercel.app,http://127.0.0.1:3000,http://127.0.0.1:3001")
+    raw = os.getenv(
+        "APP_ORIGINS",
+        "https://forexradar.bond,https://www.forexradar.bond,https://forex-ai-radar-web.vercel.app,http://127.0.0.1:3000,http://127.0.0.1:3001",
+    )
     return [item.strip() for item in raw.split(",") if item.strip()]
 
 
 def allowed_origin_regex() -> str:
     return os.getenv(
         "APP_ORIGIN_REGEX",
-        r"^https://(?:forex-ai-radar-web(?:-[a-z0-9-]+)?|forex-ai-radar-web-[a-z0-9-]+-[a-z0-9-]+)\.vercel\.app$",
+        r"^https://(?:(?:forex-ai-radar-web(?:-[a-z0-9-]+)?|forex-ai-radar-web-[a-z0-9-]+-[a-z0-9-]+)\.vercel\.app|(?:www\.)?forexradar\.bond)$",
     )
 
 
@@ -122,7 +125,7 @@ def root() -> dict[str, object]:
         "service": "Forex AI Radar API",
         "status": "ok",
         "health": "/health",
-        "frontend": "https://forex-ai-radar-web.vercel.app/login",
+        "frontend": "https://forexradar.bond/login",
     }
 
 
@@ -133,7 +136,7 @@ def favicon() -> Response:
 
 @app.get("/login")
 def api_login_redirect() -> RedirectResponse:
-    return RedirectResponse(url="https://forex-ai-radar-web.vercel.app/login", status_code=307)
+    return RedirectResponse(url="https://forexradar.bond/login", status_code=307)
 
 
 @app.get("/health")
