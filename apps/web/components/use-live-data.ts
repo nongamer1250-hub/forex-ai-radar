@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 
 import { applyOptimizer, autoDemoTrade, createDemoTrade, forceScan, getDashboardState, getDemoAccount, getDemoTrades, resetDemoAccount, resetState, runTradeManager, saveStrategySettings, saveUserPreferences } from "@/lib/api";
 import type { DashboardState, DemoAccount, DemoTrade, StrategySettings, UserPreferences } from "@/lib/types";
@@ -23,36 +23,49 @@ export function useDashboardData() {
     return () => window.clearInterval(interval);
   }, [refresh]);
 
-  return {
-    data,
-    isPending,
-    refresh,
-    forceScanNow() {
-      startTransition(() => {
-        void forceScan().then(refresh);
-      });
-    },
-    saveSettings(settings: StrategySettings) {
-      startTransition(() => {
-        void saveStrategySettings(settings).then(refresh);
-      });
-    },
-    applyOptimizerNow() {
-      startTransition(() => {
-        void applyOptimizer().then(refresh);
-      });
-    },
-    hardReset() {
-      startTransition(() => {
-        void resetState().then(refresh);
-      });
-    },
-    savePreferences(preferences: Partial<UserPreferences>) {
-      startTransition(() => {
-        void saveUserPreferences(preferences).then(refresh);
-      });
-    },
-  };
+  const forceScanNow = useCallback(() => {
+    startTransition(() => {
+      void forceScan().then(refresh);
+    });
+  }, [refresh]);
+
+  const saveSettings = useCallback((settings: StrategySettings) => {
+    startTransition(() => {
+      void saveStrategySettings(settings).then(refresh);
+    });
+  }, [refresh]);
+
+  const applyOptimizerNow = useCallback(() => {
+    startTransition(() => {
+      void applyOptimizer().then(refresh);
+    });
+  }, [refresh]);
+
+  const hardReset = useCallback(() => {
+    startTransition(() => {
+      void resetState().then(refresh);
+    });
+  }, [refresh]);
+
+  const savePreferences = useCallback((preferences: Partial<UserPreferences>) => {
+    startTransition(() => {
+      void saveUserPreferences(preferences).then(refresh);
+    });
+  }, [refresh]);
+
+  return useMemo(
+    () => ({
+      data,
+      isPending,
+      refresh,
+      forceScanNow,
+      saveSettings,
+      applyOptimizerNow,
+      hardReset,
+      savePreferences,
+    }),
+    [applyOptimizerNow, data, forceScanNow, hardReset, isPending, refresh, savePreferences, saveSettings],
+  );
 }
 
 export function useDemoData() {
@@ -76,38 +89,47 @@ export function useDemoData() {
     return () => window.clearInterval(interval);
   }, [refresh]);
 
-  return {
-    account,
-    trades,
-    autoTradeStatus,
-    isPending,
-    refresh,
-    submitTrade(payload: {
-      pair: string;
-      signal: "BUY" | "SELL";
-      units: number;
-      entry: number;
-      sl: number;
-      tp: number;
-      rr: number;
-      source_signal_id?: string;
-    }) {
-      startTransition(() => {
-        void createDemoTrade(payload).then(refresh);
+  const submitTrade = useCallback((payload: {
+    pair: string;
+    signal: "BUY" | "SELL";
+    units: number;
+    entry: number;
+    sl: number;
+    tp: number;
+    rr: number;
+    source_signal_id?: string;
+  }) => {
+    startTransition(() => {
+      void createDemoTrade(payload).then(refresh);
+    });
+  }, [refresh]);
+
+  const resetAccount = useCallback(() => {
+    startTransition(() => {
+      void resetDemoAccount().then(refresh);
+    });
+  }, [refresh]);
+
+  const runAutoTrade = useCallback(() => {
+    startTransition(() => {
+      void autoDemoTrade().then(async (result) => {
+        setAutoTradeStatus(result?.status ?? "");
+        await refresh();
       });
-    },
-    resetAccount() {
-      startTransition(() => {
-        void resetDemoAccount().then(refresh);
-      });
-    },
-    runAutoTrade() {
-      startTransition(() => {
-        void autoDemoTrade().then(async (result) => {
-          setAutoTradeStatus(result?.status ?? "");
-          await refresh();
-        });
-      });
-    },
-  };
+    });
+  }, [refresh]);
+
+  return useMemo(
+    () => ({
+      account,
+      trades,
+      autoTradeStatus,
+      isPending,
+      refresh,
+      submitTrade,
+      resetAccount,
+      runAutoTrade,
+    }),
+    [account, autoTradeStatus, isPending, refresh, resetAccount, runAutoTrade, submitTrade, trades],
+  );
 }
