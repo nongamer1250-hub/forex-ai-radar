@@ -6,7 +6,7 @@ from typing import Any
 
 from database import get_closed_trades, get_feature_logs, get_strategy_settings
 
-FOREX_PAIRS = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD", "USDCHF", "NZDUSD", "EURJPY"]
+FOREX_PAIRS = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD", "USDCHF", "NZDUSD", "EURJPY", "XAUUSD"]
 
 
 def outcome_value(trade: dict[str, Any]) -> int:

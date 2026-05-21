@@ -14,6 +14,7 @@ YAHOO_SYMBOLS = {
     "USDCHF": "CHF=X",
     "NZDUSD": "NZDUSD=X",
     "EURJPY": "EURJPY=X",
+    "XAUUSD": "GC=F",
 }
 
 
@@ -33,6 +34,14 @@ class MarketDataError(RuntimeError):
 def _normalise_yahoo_quote(pair: str, close: float) -> float:
     # Yahoo quotes JPY=X, CAD=X, and CHF=X as USD/quote already.
     return close
+
+
+def price_decimals(pair: str) -> int:
+    if pair.endswith("JPY"):
+        return 3
+    if pair == "XAUUSD":
+        return 2
+    return 5
 
 
 def fetch_candles(pair: str, interval: str = "5m", range_: str = "5d") -> list[Candle]:
@@ -77,7 +86,7 @@ def fetch_candles(pair: str, interval: str = "5m", range_: str = "5d") -> list[C
 def get_current_price(pair: str) -> float:
     candles = fetch_candles(pair, interval="1m", range_="1d")
     close = candles[-1].close
-    return round(close, 3 if pair.endswith("JPY") else 5)
+    return round(close, price_decimals(pair))
 
 
 def get_market_state() -> dict[str, str]:

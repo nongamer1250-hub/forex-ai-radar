@@ -6,10 +6,10 @@ from typing import Any
 
 from database import get_latest_trade_for_pair, get_strategy_settings, insert_trade, now_iso
 from learning import calibrate_confidence, compute_learning_bias, get_auto_blocked_pairs
-from market_data import Candle, fetch_candles, get_market_state
+from market_data import Candle, fetch_candles, get_market_state, price_decimals
 from telegram import send_signal_notification
 
-FOREX_PAIRS = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD", "USDCHF", "NZDUSD", "EURJPY"]
+FOREX_PAIRS = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD", "USDCHF", "NZDUSD", "EURJPY", "XAUUSD"]
 
 
 def ema(values: list[float], period: int) -> float:
@@ -369,6 +369,8 @@ def evaluate_signal(
     effective_source = source or state["source"]
     signal_id = f"{pair}-{int(datetime.now(UTC).timestamp() // 300)}"
 
+    decimals = price_decimals(pair)
+
     return {
         "signal_id": signal_id,
         "pair": pair,
@@ -378,9 +380,9 @@ def evaluate_signal(
         "confidence": round(confidence, 2),
         "confidence_samples": calibrated.get("samples", 0),
         "rr": rr,
-        "entry": round(entry, 3 if pair.endswith("JPY") else 5),
-        "sl": round(sl, 3 if pair.endswith("JPY") else 5),
-        "tp": round(tp, 3 if pair.endswith("JPY") else 5),
+        "entry": round(entry, decimals),
+        "sl": round(sl, decimals),
+        "tp": round(tp, decimals),
         "timestamp": effective_timestamp,
         "trade_status": "OPEN" if signal in {"BUY", "SELL"} else "WAIT",
         "session": state["session"],

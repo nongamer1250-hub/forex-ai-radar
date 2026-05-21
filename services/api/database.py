@@ -969,7 +969,7 @@ def get_user_profile(owner_key_id: str, owner_role: str = "USER") -> dict[str, A
             default = {
                 "owner_key_id": owner_key_id,
                 "owner_role": owner_role,
-                "watchlist": "EURUSD,GBPUSD,USDJPY,NZDUSD",
+                "watchlist": "EURUSD,GBPUSD,USDJPY,XAUUSD",
                 "selected_pair": "EURUSD",
                 "density_mode": "compact",
                 "notifications_enabled": 1,

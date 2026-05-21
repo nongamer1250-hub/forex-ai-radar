@@ -6,6 +6,13 @@ interface TradingViewWidgetProps {
   symbol: string;
 }
 
+function tradingViewSymbol(symbol: string): string {
+  if (symbol === "XAUUSD") {
+    return "OANDA:XAUUSD";
+  }
+  return `FX:${symbol}`;
+}
+
 declare global {
   interface Window {
     TradingView?: {
@@ -73,7 +80,7 @@ export function TradingViewWidget({ symbol }: TradingViewWidgetProps) {
       currentContainer.appendChild(mountNode);
 
       new window.TradingView.widget({
-        symbol: `FX:${symbol}`,
+        symbol: tradingViewSymbol(symbol),
         interval: "15",
         timezone: "Etc/UTC",
         theme: "dark",
